@@ -486,3 +486,19 @@ footer ul li {
 .navbar-collapse {
   background-color: rgb(219, 75, 48);
 }
+
+@media (max-width: 767px) {
+  .small-device {
+    /* Styles for phones go here */
+    justify-content: center !important;
+    margin-right: 0 !important;
+  }
+
+  .background-adjust {
+    background-image: url("/images/banner-center.png") !important;
+  }
+
+  .small-font {
+    font-size: 15px !important;
+  }
+}
