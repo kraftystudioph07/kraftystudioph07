@@ -492,10 +492,11 @@ footer ul li {
     /* Styles for phones go here */
     justify-content: center !important;
     margin-right: 0 !important;
+    margin-left: 0 !important;
   }
 
   .background-adjust {
-    background-image: url("/images/banner-center.png") !important;
+    background-image: url("../../images/banner-center.png") !important;
   }
 
   .small-font {
