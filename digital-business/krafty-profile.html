@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Krafty Digital Card — Profile</title>
+
+    <link rel="stylesheet" href="css/Digital-business-card-style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- Loader -->
+    <div id="loaderOverlay">
+      <div class="loader-content">
+        <img src="images/KraftyMain.png" id="loaderLogo" alt="Loading Logo" />
+        <div class="loader-spinner"></div>
+      </div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="profileDiv">
+      <div class="header">
+        <button id="loginEditBtn" class="edit-btn">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+
+        <img
+          id="profileCoverImage"
+          src="images/KraftyMain.png"
+          class="logo"
+          alt="Cover Image"
+        />
+
+        <div class="avatar-wrapper">
+          <img id="profilePhoto" alt="Profile Photo" />
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <h2 id="profileName" data-field="fullName">Full Name</h2>
+        <p id="profilePosition" class="position" data-field="position">
+          Position
+        </p>
+
+        <div class="contact-list">
+          <button id="profileEmail" class="contact-btn"></button>
+          <button id="profilePhone" class="contact-btn"></button>
+          <button id="profileWebsite" class="contact-btn"></button>
+        </div>
+
+        <div class="social-row">
+          <a
+            id="facebookLink"
+            class="social-btn"
+            target="_blank"
+            data-field="facebook"
+          >
+            <i class="fa-brands fa-facebook-f"></i>
+          </a>
+          <a
+            id="instagramLink"
+            class="social-btn"
+            target="_blank"
+            data-field="instagram"
+          >
+            <i class="fa-brands fa-instagram"></i>
+          </a>
+          <a
+            id="tiktokLink"
+            class="social-btn"
+            target="_blank"
+            data-field="tiktok"
+          >
+            <i class="fa-brands fa-tiktok"></i>
+          </a>
+          <a
+            id="linkedinLink"
+            class="social-btn"
+            target="_blank"
+            data-field="linkedin"
+          >
+            <i class="fa-brands fa-linkedin-in"></i>
+          </a>
+        </div>
+
+        <button id="saveContactBtn" class="contact-btn">Save My Contact</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Krafty Digital Card — Register</title>
+
+    <link rel="stylesheet" href="css/Digital-business-card-style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- Loader -->
+    <div id="loaderOverlay">
+      <div class="loader-content">
+        <img src="images/KraftyMain.png" id="loaderLogo" alt="Loading Logo" />
+        <div class="loader-spinner"></div>
+      </div>
+    </div>
+
+    <!-- REGISTRATION PAGE -->
+    <div class="registration" id="registrationDiv">
+      <div class="Registration-header">
+        <img src="images/KraftyMain.png" class="logo" alt="Cover Image" />
+      </div>
+
+      <h2>Register your Profile</h2>
+
+      <div class="banner-upload-wrapper">
+        <label for="regCover" class="banner-upload-label">
+          <img
+            id="regCoverPreview"
+            src="images/KraftyMain.png"
+            alt="Cover Image"
+            style="width: 100%; border-radius: 10px"
+          />
+          <div class="banner-upload-overlay">
+            <i class="fa-solid fa-camera"></i>
+            <span>Tap to Upload Cover</span>
+          </div>
+        </label>
+        <input type="file" id="regCover" accept="image/*" hidden />
+      </div>
+
+      <div class="photo-upload-wrapper">
+        <label for="regPhoto" class="photo-upload-label">
+          <img
+            id="photoPreview"
+            src="images/default-profile.png"
+            alt="Profile Photo"
+          />
+          <div class="upload-overlay">
+            <i class="fa-solid fa-camera"></i>
+            <span>Tap to Upload</span>
+          </div>
+        </label>
+        <input type="file" id="regPhoto" accept="image/*" hidden />
+      </div>
+
+      <small class="helper-text">Full Name</small>
+      <div class="input-row">
+        <i class="fa-solid fa-circle-user"></i>
+        <input type="text" id="regName" placeholder="Full Name" required />
+      </div>
+
+      <small class="helper-text">Position</small>
+      <div class="input-row">
+        <i class="fa-solid fa-briefcase"></i>
+        <input type="text" id="regPosition" placeholder="Position" />
+      </div>
+
+      <small class="helper-text">Email</small>
+      <div class="input-row">
+        <i class="fa-solid fa-envelope"></i>
+        <input type="email" id="regEmail" placeholder="Email" required />
+      </div>
+
+      <small class="helper-text">Password</small>
+      <div class="input-row password-row">
+        <i class="fa-solid fa-lock"></i>
+        <div class="password-wrapper">
+          <input
+            type="password"
+            id="regPassword"
+            placeholder="Password (required)"
+          />
+          <i id="togglePassword" class="fa-solid fa-eye toggle-icon"></i>
+        </div>
+      </div>
+
+      <small class="helper-text">Phone</small>
+      <div class="input-row">
+        <i class="fa-solid fa-phone"></i>
+        <input type="text" id="regPhone" placeholder="Phone" />
+      </div>
+
+      <small class="helper-text">Website</small>
+      <div class="input-row">
+        <i class="fa-solid fa-globe"></i>
+        <input type="text" id="regWebsite" placeholder="Website" />
+      </div>
+
+      <small class="helper-text">Facebook</small>
+      <div class="input-row">
+        <i class="fa-brands fa-facebook-f"></i>
+        <input type="text" id="regFacebook" placeholder="Facebook" />
+      </div>
+
+      <small class="helper-text">Instagram</small>
+      <div class="input-row">
+        <i class="fa-brands fa-instagram"></i>
+        <input type="text" id="regInstagram" placeholder="Instagram" />
+      </div>
+
+      <small class="helper-text">TikTok</small>
+      <div class="input-row">
+        <i class="fa-brands fa-tiktok"></i>
+        <input type="text" id="regTikTok" placeholder="TikTok" />
+      </div>
+
+      <small class="helper-text">LinkedIn</small>
+      <div class="input-row">
+        <i class="fa-brands fa-linkedin-in"></i>
+        <input type="text" id="regLinkedin" placeholder="LinkedIn" />
+      </div>
+
+      <button id="regSaveBtn">Register</button>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

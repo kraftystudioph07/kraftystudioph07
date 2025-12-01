@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Krafty Digital Card — Edit Profile</title>
+
+    <link rel="stylesheet" href="css/Digital-business-card-style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- Loader -->
+    <div id="loaderOverlay">
+      <div class="loader-content">
+        <img src="images/KraftyMain.png" id="loaderLogo" alt="Loading Logo" />
+        <div class="loader-spinner"></div>
+      </div>
+    </div>
+
+    <!-- EDIT PAGE -->
+    <div class="edit" id="editDiv" style="display: none">
+      <div class="banner-upload-wrapper">
+        <label for="editCover" class="banner-upload-label">
+          <img
+            id="editCoverPreview"
+            src="images/KraftyMain.png"
+            alt="Cover Image"
+          />
+          <div class="banner-upload-overlay">
+            <i class="fa-solid fa-camera"></i>
+            <span>Tap to Upload Cover</span>
+          </div>
+        </label>
+        <input type="file" id="editCover" accept="image/*" hidden />
+      </div>
+
+      <h2>Edit Profile</h2>
+
+      <div class="photo-upload-wrapper">
+        <label for="editPhoto" class="photo-upload-label">
+          <img
+            id="editPhotoPreview"
+            src="images/default-profile.png"
+            alt="Profile Photo"
+          />
+          <div class="upload-overlay">
+            <i class="fa-solid fa-camera"></i>
+            <span>Tap to Upload</span>
+          </div>
+        </label>
+        <input type="file" id="editPhoto" accept="image/*" hidden />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-solid fa-user"></i>
+        <input type="text" id="editName" placeholder="Name" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-solid fa-briefcase"></i>
+        <input type="text" id="editPosition" placeholder="Position" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-solid fa-phone"></i>
+        <input type="text" id="editPhone" placeholder="Phone" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-solid fa-globe"></i>
+        <input type="text" id="editWebsite" placeholder="Website" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-brands fa-facebook-f"></i>
+        <input type="text" id="editFacebook" placeholder="Facebook" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-brands fa-instagram"></i>
+        <input type="text" id="editInstagram" placeholder="Instagram" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-brands fa-tiktok"></i>
+        <input type="text" id="editTikTok" placeholder="TikTok" />
+      </div>
+
+      <div class="input-row">
+        <i class="fa-brands fa-linkedin-in"></i>
+        <input type="text" id="editLinkedin" placeholder="LinkedIn" />
+      </div>
+
+      <button id="editSaveBtn">Save Changes</button>
+      <button id="logoutBtn" class="logout">Log Out</button>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
