@@ -401,8 +401,19 @@ function initRegisterPage() {
   // Toggle password
   if (togglePassword && regPassword) {
     togglePassword.addEventListener("click", () => {
+      // Toggle password visibility
+      const regPassword = document.getElementById("regPassword");
       regPassword.type = regPassword.type === "password" ? "text" : "password";
+
+      // Toggle eye icon
       togglePassword.classList.toggle("fa-eye-slash");
+
+      // Trigger blink animation
+      togglePassword.classList.add("blink");
+      setTimeout(() => togglePassword.classList.remove("blink"), 200);
+
+      // Optional: Toggle slash animation
+      togglePassword.classList.toggle("slash");
     });
   }
 
@@ -521,7 +532,7 @@ function initRegisterPage() {
           position: regPosition?.value?.trim() || "",
           email,
           photoUrl: photoURL || "images/default-profile.png",
-          coverUrl: coverURL || "images/KraftyMain.png",
+          coverUrl: coverURL || "images/kraftylogo-white.png",
           socials: {
             phone: regPhone?.value?.trim() || "",
             website: regWebsite?.value?.trim() || "",
@@ -568,10 +579,20 @@ function initLoginPage() {
 
   if (toggleLoginPassword) {
     toggleLoginPassword.addEventListener("click", () => {
-      const input = $("loginPassword");
-      if (!input) return;
-      input.type = input.type === "password" ? "text" : "password";
+      // Toggle password visibility
+      const loginPassword = document.getElementById("loginPassword");
+      loginPassword.type =
+        loginPassword.type === "password" ? "text" : "password";
+
+      // Toggle eye icon
       toggleLoginPassword.classList.toggle("fa-eye-slash");
+
+      // Trigger blink animation
+      toggleLoginPassword.classList.add("blink");
+      setTimeout(() => toggleLoginPassword.classList.remove("blink"), 200);
+
+      // Optional: Toggle slash animation
+      toggleLoginPassword.classList.toggle("slash");
     });
   }
 
@@ -968,20 +989,7 @@ END:VCARD`;
 /* ==========================
    Generic toggles & previews
    ========================== */
-if (togglePassword && regPassword) {
-  togglePassword.addEventListener("click", () => {
-    regPassword.type = regPassword.type === "password" ? "text" : "password";
-    togglePassword.classList.toggle("fa-eye-slash");
-  });
-}
-if (toggleLoginPassword) {
-  toggleLoginPassword.addEventListener("click", () => {
-    const input = $("loginPassword");
-    if (!input) return;
-    input.type = input.type === "password" ? "text" : "password";
-    toggleLoginPassword.classList.toggle("fa-eye-slash");
-  });
-}
+
 if (regPhoto && photoPreview) {
   regPhoto.addEventListener("change", () => {
     const file = regPhoto.files[0];
