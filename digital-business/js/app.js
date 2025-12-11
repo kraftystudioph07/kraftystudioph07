@@ -322,6 +322,14 @@ async function loadProfile() {
       toggleField(profilePhone, data.socials?.phone, "phone");
       toggleField(profileWebsite, data.socials?.website, "website");
 
+      //Helper Function for social link
+      function normalizeUrl(url) {
+        if (!url) return "";
+        return url.startsWith("http://") || url.startsWith("https://")
+          ? url
+          : "https://" + url;
+      }
+
       // Socials
       ["facebook", "instagram", "tiktok", "linkedin"].forEach((p) => {
         const el = document.getElementById(p + "Link");
@@ -332,7 +340,7 @@ async function loadProfile() {
         if (!url || url.trim() === "") {
           el.style.display = "none";
         } else {
-          el.href = url;
+          el.href = normalizeUrl(url);
           el.style.display = "inline-block";
         }
       });
@@ -867,16 +875,24 @@ function initEditPage() {
             photoUrl: photoURL || data.photoUrl || "images/default-profile.png",
             coverUrl: coverURL || data.coverUrl || "images/KraftyMain.png",
             socials: {
-              phone: editPhone?.value?.trim() || data.socials?.phone || "",
-              website:
-                editWebsite?.value?.trim() || data.socials?.website || "",
-              facebook:
-                editFacebook?.value?.trim() || data.socials?.facebook || "",
-              instagram:
-                editInstagram?.value?.trim() || data.socials?.instagram || "",
-              tiktok: editTikTok?.value?.trim() || data.socials?.tiktok || "",
-              linkedin:
-                editLinkedin?.value?.trim() || data.socials?.linkedin || "",
+              phone: editPhone
+                ? editPhone.value.trim()
+                : data.socials?.phone ?? "",
+              website: editWebsite
+                ? editWebsite.value.trim()
+                : data.socials?.website ?? "",
+              facebook: editFacebook
+                ? editFacebook.value.trim()
+                : data.socials?.facebook ?? "",
+              instagram: editInstagram
+                ? editInstagram.value.trim()
+                : data.socials?.instagram ?? "",
+              tiktok: editTikTok
+                ? editTikTok.value.trim()
+                : data.socials?.tiktok ?? "",
+              linkedin: editLinkedin
+                ? editLinkedin.value.trim()
+                : data.socials?.linkedin ?? "",
             },
             authUid: currentUser.uid,
           };
@@ -930,147 +946,145 @@ function initProfilePage() {
   }
 
   // Updated vCard + embedded-photo handler (replace your existing handler with this)
-if (saveContactBtn) {
-  saveContactBtn.addEventListener("click", async () => {
-    if (!profileDivElem || profileDivElem.style.display === "none") {
-      alert("Profile not loaded yet.");
-      return;
-    }
-
-    // ====== GET TEXT FIELDS (trimmed) ======
-    const name = (profileName?.textContent || "").trim();
-    const position = (profilePosition?.textContent || "").trim();
-    const email = (profileEmail?.textContent || "").trim();
-    const phone = (profilePhone?.textContent || "").trim();
-    let website = (profileWebsite?.textContent || "").trim();
-    const facebook = facebookLink?.href || "";
-    const instagram = instagramLink?.href || "";
-    const tiktok = tiktokLink?.href || "";
-    const linkedin = linkedinLink?.href || "";
-
-    // normalize website to include protocol (https preferred)
-    if (website && !/^https?:\/\//i.test(website)) {
-      website = "https://" + website;
-    }
-
-    // ====== GET PHOTO URL FROM IMG TAG ======
-    const imgElem = document.getElementById("profilePhoto");
-    const photoUrl = imgElem?.src || "";
-
-    // ====== PROXY (your Cloud Function) ======
-    const funcBase = "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
-
-    // ====== HELPERS ======
-    const CRLF = "\r\n";
-
-    function buildN(fullName) {
-      if (!fullName) return ";;;";
-      const parts = fullName.trim().split(/\s+/);
-      const first = parts.shift() || "";
-      const last = parts.join(" ") || "";
-      return `${last};${first};;;`;
-    }
-
-    // Convert Blob -> base64 (data URL -> base64)
-    function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => {
-          const s = r.result || "";
-          const idx = s.indexOf(",") + 1;
-          resolve(s.slice(idx));
-        };
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-      });
-    }
-
-    // Fold base64 into 75-char chunks for vCard with RFC-style continuation lines.
-    function foldBase64ForVCard(base64) {
-      const CHUNK = 75;
-      const parts = [];
-      for (let i = 0; i < base64.length; i += CHUNK) {
-        parts.push(base64.slice(i, i + CHUNK));
+  if (saveContactBtn) {
+    saveContactBtn.addEventListener("click", async () => {
+      if (!profileDivElem || profileDivElem.style.display === "none") {
+        alert("Profile not loaded yet.");
+        return;
       }
-      // first piece no prefix, subsequent pieces prefixed with CRLF + single space
-      return parts.map((p, i) => (i === 0 ? p : CRLF + " " + p)).join("");
-    }
 
-    // ====== TRY TO FETCH & EMBED PHOTO  ======
-let base64Photo = "";
-let photoMime = "JPEG";
+      // ====== GET TEXT FIELDS (trimmed) ======
+      const name = (profileName?.textContent || "").trim();
+      const position = (profilePosition?.textContent || "").trim();
+      const email = (profileEmail?.textContent || "").trim();
+      const phone = (profilePhone?.textContent || "").trim();
+      let website = (profileWebsite?.textContent || "").trim();
+      const facebook = facebookLink?.href || "";
+      const instagram = instagramLink?.href || "";
+      const tiktok = tiktokLink?.href || "";
+      const linkedin = linkedinLink?.href || "";
 
-if (photoUrl) {
-  try {
-    const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
-    const res = await fetch(proxiedUrl);
-    if (!res.ok) throw new Error("proxy fetch failed: " + res.status);
+      // normalize website to include protocol (https preferred)
+      if (website && !/^https?:\/\//i.test(website)) {
+        website = "https://" + website;
+      }
 
-    const blob = await res.blob();
+      // ====== GET PHOTO URL FROM IMG TAG ======
+      const imgElem = document.getElementById("profilePhoto");
+      const photoUrl = imgElem?.src || "";
 
-    // detect MIME
-    photoMime = blob.type?.toLowerCase().includes("png") ? "PNG" : "JPEG";
+      // ====== PROXY (your Cloud Function) ======
+      const funcBase =
+        "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
 
-    // convert original blob → base64 (no resizing)
-    base64Photo = await blobToBase64(blob);
+      // ====== HELPERS ======
+      const CRLF = "\r\n";
 
-  } catch (err) {
-    console.error("Could not fetch/embed photo through proxy:", err);
-    base64Photo = ""; // fallback to URI if embed fails
+      function buildN(fullName) {
+        if (!fullName) return ";;;";
+        const parts = fullName.trim().split(/\s+/);
+        const first = parts.shift() || "";
+        const last = parts.join(" ") || "";
+        return `${last};${first};;;`;
+      }
+
+      // Convert Blob -> base64 (data URL -> base64)
+      function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => {
+            const s = r.result || "";
+            const idx = s.indexOf(",") + 1;
+            resolve(s.slice(idx));
+          };
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
+      }
+
+      // Fold base64 into 75-char chunks for vCard with RFC-style continuation lines.
+      function foldBase64ForVCard(base64) {
+        const CHUNK = 75;
+        const parts = [];
+        for (let i = 0; i < base64.length; i += CHUNK) {
+          parts.push(base64.slice(i, i + CHUNK));
+        }
+        // first piece no prefix, subsequent pieces prefixed with CRLF + single space
+        return parts.map((p, i) => (i === 0 ? p : CRLF + " " + p)).join("");
+      }
+
+      // ====== TRY TO FETCH & EMBED PHOTO  ======
+      let base64Photo = "";
+      let photoMime = "JPEG";
+
+      if (photoUrl) {
+        try {
+          const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
+          const res = await fetch(proxiedUrl);
+          if (!res.ok) throw new Error("proxy fetch failed: " + res.status);
+
+          const blob = await res.blob();
+
+          // detect MIME
+          photoMime = blob.type?.toLowerCase().includes("png") ? "PNG" : "JPEG";
+
+          // convert original blob → base64 (no resizing)
+          base64Photo = await blobToBase64(blob);
+        } catch (err) {
+          console.error("Could not fetch/embed photo through proxy:", err);
+          base64Photo = ""; // fallback to URI if embed fails
+        }
+      }
+
+      // ====== BUILD VCARD LINES (CRLF) ======
+      const lines = [];
+      lines.push("BEGIN:VCARD");
+      lines.push("VERSION:3.0");
+
+      // N and FN (N is important for Apple)
+      lines.push(`N:${buildN(name)}`);
+      lines.push(`FN:${name || ""}`);
+
+      if (position) lines.push(`TITLE:${position}`);
+      if (email) lines.push(`EMAIL;TYPE=WORK:${email}`);
+      if (phone) lines.push(`TEL;TYPE=CELL:${phone}`);
+      if (website) lines.push(`URL:${website}`);
+      if (facebook) lines.push(`X-SOCIALPROFILE;TYPE=Facebook:${facebook}`);
+      if (instagram) lines.push(`X-SOCIALPROFILE;TYPE=Instagram:${instagram}`);
+      if (tiktok) lines.push(`X-SOCIALPROFILE;TYPE=TikTok:${tiktok}`);
+      if (linkedin) lines.push(`X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}`);
+
+      // PHOTO: header on its own line, then folded base64 lines (RFC)
+      if (base64Photo) {
+        const folded = foldBase64ForVCard(base64Photo);
+        lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}`); // header
+      } else if (photoUrl) {
+        // fallback: include original image URI (works for some clients)
+        lines.push(`PHOTO;VALUE=URI:${photoUrl}`);
+      }
+
+      lines.push("END:VCARD");
+
+      // Join. folded base64 entry already includes CRLFs; joining with CRLF preserves correct structure.
+      const vCard = lines.join(CRLF);
+
+      // ====== DOWNLOAD .VCF ======
+      try {
+        const blobOut = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
+        const u = URL.createObjectURL(blobOut);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(u);
+      } catch (err) {
+        console.error("Failed to create/download vCard:", err);
+        alert("Error creating vCard. See console for details.");
+      }
+    });
   }
-}
-
-
-    // ====== BUILD VCARD LINES (CRLF) ======
-    const lines = [];
-    lines.push("BEGIN:VCARD");
-    lines.push("VERSION:3.0");
-
-    // N and FN (N is important for Apple)
-    lines.push(`N:${buildN(name)}`);
-    lines.push(`FN:${name || ""}`);
-
-    if (position) lines.push(`TITLE:${position}`);
-    if (email) lines.push(`EMAIL;TYPE=WORK:${email}`);
-    if (phone) lines.push(`TEL;TYPE=CELL:${phone}`);
-    if (website) lines.push(`URL:${website}`);
-    if (facebook) lines.push(`X-SOCIALPROFILE;TYPE=Facebook:${facebook}`);
-    if (instagram) lines.push(`X-SOCIALPROFILE;TYPE=Instagram:${instagram}`);
-    if (tiktok) lines.push(`X-SOCIALPROFILE;TYPE=TikTok:${tiktok}`);
-    if (linkedin) lines.push(`X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}`);
-
-    // PHOTO: header on its own line, then folded base64 lines (RFC)
-    if (base64Photo) {
-      const folded = foldBase64ForVCard(base64Photo);
-      lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}`); // header
-    } else if (photoUrl) {
-      // fallback: include original image URI (works for some clients)
-      lines.push(`PHOTO;VALUE=URI:${photoUrl}`);
-    }
-
-    lines.push("END:VCARD");
-
-    // Join. folded base64 entry already includes CRLFs; joining with CRLF preserves correct structure.
-    const vCard = lines.join(CRLF);
-
-    // ====== DOWNLOAD .VCF ======
-    try {
-      const blobOut = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
-      const u = URL.createObjectURL(blobOut);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(u);
-    } catch (err) {
-      console.error("Failed to create/download vCard:", err);
-      alert("Error creating vCard. See console for details.");
-    }
-  });
-}
-
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
