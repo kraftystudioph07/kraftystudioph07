@@ -1077,10 +1077,8 @@ if (saveContactBtn) {
 
     // PHOTO: header on its own line, then folded base64 lines (RFC)
     if (base64Photo) {
-      lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:`); // header
       const folded = foldBase64ForVCard(base64Photo);
-      // folded contains CRLF + leading spaces for continuation lines; push as single entry
-      lines.push(folded);
+      lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}`); // header
     } else if (photoUrl) {
       // fallback: include original image URI (works for some clients)
       lines.push(`PHOTO;VALUE=URI:${photoUrl}`);
