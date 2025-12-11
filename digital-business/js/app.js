@@ -937,11 +937,11 @@ function initProfilePage() {
     }
 
     // ====== GET TEXT FIELDS ======
-    const name = profileName?.textContent || "";
-    const position = profilePosition?.textContent || "";
-    const email = profileEmail?.textContent || "";
-    const phone = profilePhone?.textContent || "";
-    const website = profileWebsite?.textContent || "";
+    const name = profileName?.textContent?.trim() || "";
+    const position = profilePosition?.textContent?.trim() || "";
+    const email = profileEmail?.textContent?.trim() || "";
+    const phone = profilePhone?.textContent?.trim() || "";
+    const website = profileWebsite?.textContent?.trim() || "";
     const facebook = facebookLink?.href || "";
     const instagram = instagramLink?.href || "";
     const tiktok = tiktokLink?.href || "";
@@ -955,9 +955,10 @@ function initProfilePage() {
     let photoMime = "JPEG"; // JPEG by default
 
     // ====== CLOUD FUNCTION PROXY URL ======
-    const funcBase = "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
+    const funcBase =
+      "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
 
-    // ====== FUNCTION: Blob -> Base64 ======
+    // ====== HELPERS ======
     function blobToBase64(blob) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -967,48 +968,50 @@ function initProfilePage() {
       });
     }
 
-    // ====== FUNCTION: Optional Downscale (smaller vCard) ======
-    async function downscaleBlob(blob, maxSize = 400) {
+    // Downscale using canvas. Defaults tuned for iOS compatibility.
+    async function downscaleBlob(blob, maxSide = 200, quality = 0.75) {
       try {
         const img = document.createElement("img");
         const url = URL.createObjectURL(blob);
-
         await new Promise((res, rej) => {
           img.onload = res;
           img.onerror = rej;
           img.src = url;
         });
 
-        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
         const canvas = document.createElement("canvas");
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-
+        canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
+        canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
         URL.revokeObjectURL(url);
 
-        return new Promise((resolve) => {
-          canvas.toBlob(
-            (b) => resolve(b),
-            "image/jpeg",
-            0.8
-          );
-        });
+        return await new Promise((resolve) =>
+          canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
+        );
       } catch (err) {
-        console.warn("Downscale failed, using original blob");
+        console.warn("Downscale failed, using original blob", err);
         return blob;
       }
     }
 
-    // ====== FUNCTION: Fold BASE64 to 75 characters per line ======
+    // Fold base64 into 75-char chunks. First line is plain, subsequent lines begin with CRLF + space.
     function foldBase64ForVCard(str) {
+      const CHUNK = 75;
       const parts = [];
-      for (let i = 0; i < str.length; i += 75) {
-        parts.push(str.slice(i, i + 75));
-      }
+      for (let i = 0; i < str.length; i += CHUNK) parts.push(str.slice(i, i + CHUNK));
+      // first piece no prefix, others prefixed with CRLF + single space
       return parts.map((p, i) => (i === 0 ? p : "\r\n " + p)).join("");
+    }
+
+    // Build N: field (Lastname;Firstname;Additional;Prefix;Suffix)
+    function buildN(fullName) {
+      if (!fullName) return ";;;";
+      const parts = fullName.trim().split(/\s+/);
+      const first = parts.shift() || "";
+      const last = parts.join(" ") || "";
+      return `${last};${first};;;`;
     }
 
     // ====== FETCH PHOTO THROUGH PROXY (fixes CORS) ======
@@ -1016,62 +1019,81 @@ function initProfilePage() {
       try {
         const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
         const res = await fetch(proxiedUrl);
-        if (!res.ok) throw new Error("Photo fetch failed");
-
+        if (!res.ok) throw new Error("Photo fetch failed: " + res.status);
         let blob = await res.blob();
 
-        // Optional image resizing — keeps vCard under a few hundred KB.
+        // Downscale to keep vCard small for iOS. Adjust maxSide / quality if needed.
         const DOWNSCALE = true;
         if (DOWNSCALE) {
-          blob = await downscaleBlob(blob);
+          blob = await downscaleBlob(blob, 200, 0.75);
         }
 
-        photoMime = blob.type.includes("png") ? "PNG" : "JPEG";
+        photoMime = (blob.type || "").toLowerCase().includes("png") ? "PNG" : "JPEG";
         base64Photo = await blobToBase64(blob);
 
+        // If still too large, do a second-pass smaller resize
+        if (base64Photo.length > 250000) {
+          console.warn("Embedded photo still large, retrying smaller...");
+          const smaller = await downscaleBlob(blob, 150, 0.6);
+          if (smaller) base64Photo = await blobToBase64(smaller);
+        }
       } catch (err) {
         console.error("Failed to embed photo:", err);
+        base64Photo = "";
       }
     }
 
-    // ====== BUILD VCARD ======
-    let vCard = 
-`BEGIN:VCARD
-VERSION:3.0
-FN:${name}
-TITLE:${position}
-EMAIL;TYPE=WORK:${email}
-TEL;TYPE=CELL:${phone}
-URL:${website}
-X-SOCIALPROFILE;TYPE=Facebook:${facebook}
-X-SOCIALPROFILE;TYPE=Instagram:${instagram}
-X-SOCIALPROFILE;TYPE=TikTok:${tiktok}
-X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}
-`;
+    // ====== BUILD VCARD LINES WITH CRLF ======
+    const CRLF = "\r\n";
+    const lines = [];
 
-    // Append PHOTO if available
+    lines.push("BEGIN:VCARD");
+    lines.push("VERSION:3.0");
+
+    // N and FN (N is important for Apple)
+    lines.push(`N:${buildN(name)}`);
+    lines.push(`FN:${name}`);
+
+    if (position) lines.push(`TITLE:${position}`);
+    if (email) lines.push(`EMAIL;TYPE=WORK:${email}`);
+    if (phone) lines.push(`TEL;TYPE=CELL:${phone}`);
+    if (website) lines.push(`URL:${website}`);
+    if (facebook) lines.push(`X-SOCIALPROFILE;TYPE=Facebook:${facebook}`);
+    if (instagram) lines.push(`X-SOCIALPROFILE;TYPE=Instagram:${instagram}`);
+    if (tiktok) lines.push(`X-SOCIALPROFILE;TYPE=TikTok:${tiktok}`);
+    if (linkedin) lines.push(`X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}`);
+
+    // PHOTO: put header on its own line, then folded base64 lines (RFC form)
     if (base64Photo) {
+      lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:`); // header line
+      // Append folded base64 as a single "virtual" line (we'll join with CRLF later)
       const folded = foldBase64ForVCard(base64Photo);
-      vCard += `PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}\r\n`;
+      // folded already contains CRLF and leading spaces for continuation lines,
+      // so push as one entry that will remain intact when joining with CRLF.
+      lines.push(folded);
+    } else if (photoUrl) {
+      // fallback: remote URI (some clients use this)
+      lines.push(`PHOTO;VALUE=URI:${photoUrl}`);
     }
 
-    vCard += "END:VCARD";
+    lines.push("END:VCARD");
+
+    // Join with CRLF. Because folded base64 already contains CRLFs, don't alter those.
+    const vCard = lines.join(CRLF);
 
     // ====== DOWNLOAD .VCF FILE ======
     const blobOut = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
-    const url = URL.createObjectURL(blobOut);
+    const downloadUrl = URL.createObjectURL(blobOut);
 
     const a = document.createElement("a");
-    a.href = url;
+    a.href = downloadUrl;
     a.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(downloadUrl);
   });
 }
-
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
