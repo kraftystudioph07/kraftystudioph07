@@ -930,22 +930,113 @@ function initProfilePage() {
   }
 
   if (saveContactBtn) {
-    saveContactBtn.addEventListener("click", () => {
-      if (!profileDivElem || profileDivElem.style.display === "none") {
-        alert("Profile not loaded yet.");
-        return;
-      }
-      const name = profileName?.textContent || "";
-      const position = profilePosition?.textContent || "";
-      const email = profileEmail?.textContent || "";
-      const phone = profilePhone?.textContent || "";
-      const website = profileWebsite?.textContent || "";
-      const facebook = facebookLink?.href || "";
-      const instagram = instagramLink?.href || "";
-      const tiktok = tiktokLink?.href || "";
-      const linkedin = linkedinLink?.href || "";
+  saveContactBtn.addEventListener("click", async () => {
+    if (!profileDivElem || profileDivElem.style.display === "none") {
+      alert("Profile not loaded yet.");
+      return;
+    }
 
-      let vCard = `BEGIN:VCARD
+    // ====== GET TEXT FIELDS ======
+    const name = profileName?.textContent || "";
+    const position = profilePosition?.textContent || "";
+    const email = profileEmail?.textContent || "";
+    const phone = profilePhone?.textContent || "";
+    const website = profileWebsite?.textContent || "";
+    const facebook = facebookLink?.href || "";
+    const instagram = instagramLink?.href || "";
+    const tiktok = tiktokLink?.href || "";
+    const linkedin = linkedinLink?.href || "";
+
+    // ====== GET PHOTO URL FROM IMG TAG ======
+    const imgElem = document.getElementById("profilePhoto");
+    const photoUrl = imgElem?.src || "";
+
+    let base64Photo = "";
+    let photoMime = "JPEG"; // JPEG by default
+
+    // ====== CLOUD FUNCTION PROXY URL ======
+    const funcBase = "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
+
+    // ====== FUNCTION: Blob -> Base64 ======
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // ====== FUNCTION: Optional Downscale (smaller vCard) ======
+    async function downscaleBlob(blob, maxSize = 400) {
+      try {
+        const img = document.createElement("img");
+        const url = URL.createObjectURL(blob);
+
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = rej;
+          img.src = url;
+        });
+
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        URL.revokeObjectURL(url);
+
+        return new Promise((resolve) => {
+          canvas.toBlob(
+            (b) => resolve(b),
+            "image/jpeg",
+            0.8
+          );
+        });
+      } catch (err) {
+        console.warn("Downscale failed, using original blob");
+        return blob;
+      }
+    }
+
+    // ====== FUNCTION: Fold BASE64 to 75 characters per line ======
+    function foldBase64ForVCard(str) {
+      const parts = [];
+      for (let i = 0; i < str.length; i += 75) {
+        parts.push(str.slice(i, i + 75));
+      }
+      return parts.map((p, i) => (i === 0 ? p : "\r\n " + p)).join("");
+    }
+
+    // ====== FETCH PHOTO THROUGH PROXY (fixes CORS) ======
+    if (photoUrl) {
+      try {
+        const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
+        const res = await fetch(proxiedUrl);
+        if (!res.ok) throw new Error("Photo fetch failed");
+
+        let blob = await res.blob();
+
+        // Optional image resizing — keeps vCard under a few hundred KB.
+        const DOWNSCALE = true;
+        if (DOWNSCALE) {
+          blob = await downscaleBlob(blob);
+        }
+
+        photoMime = blob.type.includes("png") ? "PNG" : "JPEG";
+        base64Photo = await blobToBase64(blob);
+
+      } catch (err) {
+        console.error("Failed to embed photo:", err);
+      }
+    }
+
+    // ====== BUILD VCARD ======
+    let vCard = 
+`BEGIN:VCARD
 VERSION:3.0
 FN:${name}
 TITLE:${position}
@@ -956,19 +1047,31 @@ X-SOCIALPROFILE;TYPE=Facebook:${facebook}
 X-SOCIALPROFILE;TYPE=Instagram:${instagram}
 X-SOCIALPROFILE;TYPE=TikTok:${tiktok}
 X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}
-END:VCARD`;
+`;
 
-      const blob = new Blob([vCard], { type: "text/vcard" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    });
-  }
+    // Append PHOTO if available
+    if (base64Photo) {
+      const folded = foldBase64ForVCard(base64Photo);
+      vCard += `PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}\r\n`;
+    }
+
+    vCard += "END:VCARD";
+
+    // ====== DOWNLOAD .VCF FILE ======
+    const blobOut = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blobOut);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  });
+}
+
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
