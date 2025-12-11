@@ -985,36 +985,6 @@ if (saveContactBtn) {
       });
     }
 
-    // Downscale Blob using canvas. Returns a new Blob (JPEG).
-    async function downscaleBlob(blob, maxSide = 256, quality = 0.7) {
-      try {
-        const img = document.createElement("img");
-        const url = URL.createObjectURL(blob);
-        await new Promise((res, rej) => {
-          img.onload = res;
-          img.onerror = rej;
-          img.src = url;
-        });
-
-        const w = img.width || 1;
-        const h = img.height || 1;
-        const scale = Math.min(1, maxSide / Math.max(w, h));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(w * scale));
-        canvas.height = Math.max(1, Math.round(h * scale));
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url);
-
-        return await new Promise((resolve) =>
-          canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
-        );
-      } catch (err) {
-        console.warn("downscaleBlob failed, returning original blob", err);
-        return blob;
-      }
-    }
-
     // Fold base64 into 75-char chunks for vCard with RFC-style continuation lines.
     function foldBase64ForVCard(base64) {
       const CHUNK = 75;
@@ -1026,36 +996,30 @@ if (saveContactBtn) {
       return parts.map((p, i) => (i === 0 ? p : CRLF + " " + p)).join("");
     }
 
-    // ====== TRY TO FETCH & EMBED PHOTO ======
-    let base64Photo = "";
-    let photoMime = "JPEG";
-    if (photoUrl) {
-      try {
-        const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
-        const res = await fetch(proxiedUrl);
-        if (!res.ok) throw new Error("proxy fetch failed: " + res.status);
-        let blob = await res.blob();
+    // ====== TRY TO FETCH & EMBED PHOTO  ======
+let base64Photo = "";
+let photoMime = "JPEG";
 
-        // First-pass downscale (safe defaults for iOS)
-        blob = await downscaleBlob(blob, 256, 0.7);
+if (photoUrl) {
+  try {
+    const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
+    const res = await fetch(proxiedUrl);
+    if (!res.ok) throw new Error("proxy fetch failed: " + res.status);
 
-        photoMime = (blob.type || "").toLowerCase().includes("png") ? "PNG" : "JPEG";
-        base64Photo = await blobToBase64(blob);
+    const blob = await res.blob();
 
-        // If still large (> 300 KB encoded), do a more aggressive second pass
-        if (base64Photo.length > 300 * 1024) {
-          console.warn("embedded photo large, doing second-pass downscale");
-          const smaller = await downscaleBlob(blob, 150, 0.6);
-          if (smaller) {
-            photoMime = (smaller.type || "").toLowerCase().includes("png") ? "PNG" : "JPEG";
-            base64Photo = await blobToBase64(smaller);
-          }
-        }
-      } catch (err) {
-        console.error("Could not fetch/embed photo through proxy:", err);
-        base64Photo = ""; // fallback to URI later
-      }
-    }
+    // detect MIME
+    photoMime = blob.type?.toLowerCase().includes("png") ? "PNG" : "JPEG";
+
+    // convert original blob → base64 (no resizing)
+    base64Photo = await blobToBase64(blob);
+
+  } catch (err) {
+    console.error("Could not fetch/embed photo through proxy:", err);
+    base64Photo = ""; // fallback to URI if embed fails
+  }
+}
+
 
     // ====== BUILD VCARD LINES (CRLF) ======
     const lines = [];
