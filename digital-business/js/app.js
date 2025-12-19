@@ -298,23 +298,36 @@ async function loadProfile() {
       // Contact fields
       function toggleField(elem, value, type) {
         if (!elem) return;
+
+        const textSpan = elem.querySelector(".contact-text");
+
         if (!value || value.trim() === "") {
           elem.style.display = "none";
-        } else {
-          elem.style.display = "block";
-          elem.textContent = value;
+          elem.onclick = null;
+          if (textSpan) textSpan.textContent = "";
+          return;
+        }
 
-          if (type === "email")
-            elem.onclick = () => (window.location.href = `mailto:${value}`);
+        elem.style.display = "flex";
+        if (textSpan) textSpan.textContent = value;
 
-          if (type === "phone")
-            elem.onclick = () => (window.location.href = `tel:${value}`);
+        if (type === "email") {
+          elem.onclick = () => {
+            window.location.href = `mailto:${value}`;
+          };
+        }
 
-          if (type === "website")
-            elem.onclick = () => {
-              const v = value.startsWith("http") ? value : "https://" + value;
-              window.open(v, "_blank");
-            };
+        if (type === "phone") {
+          elem.onclick = () => {
+            window.location.href = `tel:${value}`;
+          };
+        }
+
+        if (type === "website") {
+          elem.onclick = () => {
+            const v = value.startsWith("http") ? value : `https://${value}`;
+            window.open(v, "_blank");
+          };
         }
       }
 

@@ -29,8 +29,8 @@ body {
 }
 
 .header .logo {
-  width: 170px;
-  max-width: 60%;
+  /* width: 170px; */
+  max-width: auto;
 }
 
 .header .edit-btn {
@@ -154,6 +154,7 @@ body {
   flex-direction: column;
   align-items: center;
   margin-top: 85px; /* adjust for avatar overlap */
+  margin-bottom: 10px;
   text-align: center;
   width: 95%;
   max-width: 500px;
@@ -771,7 +772,6 @@ body {
 /* ===== CONTACT DETAILS ===== */
 .contact-list {
   width: 100%;
-  margin-bottom: 20px;
 }
 
 .contact-item {
@@ -783,9 +783,12 @@ body {
   word-break: break-word;
 }
 
-/* Contact as a button */
-.contact-btn {
-  display: block;
+/* Save Btn */
+.profile-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
   width: 90%;
   max-width: 300px;
   margin: 10px auto;
@@ -800,6 +803,42 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(5px);
   transition: all 0.3s ease;
+}
+
+.profile-save-btn i {
+  font-size: 18px;
+}
+
+.profile-save-btn:hover {
+  background: rgba(219, 74, 43, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Contact as a button */
+.contact-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: left;
+  width: 90%;
+  max-width: 300px;
+  margin: 10px auto;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  border-radius: 12px;
+  background: rgba(219, 74, 43, 0.85);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.contact-btn i {
+  font-size: 18px;
 }
 
 .contact-btn:hover {
@@ -824,7 +863,7 @@ body {
   justify-content: center; /* horizontal center */
   width: 50px;
   height: 50px;
-  border-radius: 12px;
+  border-radius: 50%;
   color: #fff;
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -863,22 +902,6 @@ body {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* Save Button */
-.save-btn {
-  background: var(--orange, #db4a2b);
-  color: #fff;
-  border: none;
-  font-size: 20px;
-  padding: 12px 30px;
-  border-radius: 40px;
-  cursor: pointer;
-  margin-bottom: 15px;
-}
-
-.save-btn:hover {
-  background: #c43d21;
-}
-
 /* ===== FOOTER ===== */
 footer {
   font-size: 14px;
@@ -899,13 +922,6 @@ footer span {
   .header {
     height: 220px;
   }
-
-  .header .mobile-logo {
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: auto !important;
-    max-height: 46px;
-  }
   .avatar-wrapper {
     width: 150px;
     height: 150px;
@@ -923,7 +939,7 @@ footer span {
   }
 
   .logo {
-    width: 150px;
+    width: 70%;
   }
 
   .avatar-wrapper {
