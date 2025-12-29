@@ -168,7 +168,7 @@ async function uploadCoverImage(nfcIdParam, uid, file) {
 /* ==========================
    File validation helper
    ========================== */
-function validateImageFile(file, maxMb = 2) {
+function validateImageFile(file, maxMb = 5) {
   if (!file) return { ok: true };
   const allowed = ["image/jpeg", "image/png", "image/webp"];
   const sizeMB = file.size / (1024 * 1024);
@@ -186,17 +186,52 @@ function validateImageFile(file, maxMb = 2) {
 function validateCoverDimensionsPromise(file) {
   return new Promise((resolve) => {
     if (!file) return resolve({ ok: true });
+
     const img = new Image();
     img.onload = () => {
-      const w = img.width;
-      const h = img.height;
-      if (w <= 624 && h <= 240) {
-        resolve({ ok: true, w, h });
-      } else {
-        resolve({ ok: false, w, h });
-      }
+      resolve({
+        ok: img.width >= img.height, // square or landscape
+        w: img.width,
+        h: img.height,
+      });
     };
-    img.onerror = () => resolve({ ok: false, w: 0, h: 0 });
+    img.onerror = () => resolve({ ok: false });
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function optimizeCoverImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      let targetW;
+      let targetH;
+
+      // Square
+      if (img.width === img.height) {
+        targetW = 512;
+        targetH = 512;
+      }
+      // Landscape
+      else {
+        targetW = 624;
+        targetH = Math.round((img.height / img.width) * targetW);
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+
+      const isPNG = file.type === "image/png";
+
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      const outputType = isPNG ? "image/png" : "image/jpeg";
+      canvas.toBlob((blob) => resolve(blob), outputType, 0.8);
+    };
+
     img.src = URL.createObjectURL(file);
   });
 }
@@ -357,6 +392,16 @@ async function loadProfile() {
           el.style.display = "inline-block";
         }
       });
+      const socialRow = document.querySelector(".social-row");
+      const profilesavebtn = document.querySelector(".profile-save-btn");
+
+      if (socialRow) {
+        const socials = ["facebook", "instagram", "tiktok", "linkedin"];
+        const hasAnySocial = socials.some((p) => data.socials?.[p]?.trim());
+
+        socialRow.style.display = hasAnySocial ? "flex" : "none";
+        profilesavebtn.style.margin = hasAnySocial ? "10px auto" : "0 auto";
+      }
     }
   } catch (err) {
     console.error("loadProfile error:", err);
@@ -407,7 +452,7 @@ function initRegisterPage() {
       const dim = await validateCoverDimensionsPromise(file);
       if (!dim.ok) {
         showToast(
-          `Cover must be 624×240 OR SMALLER (uploaded: ${dim.w}×${dim.h})`
+          `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
         );
         regCover.value = "";
         return;
@@ -482,7 +527,7 @@ function initRegisterPage() {
         if (!dim.ok) {
           hideLoader();
           showToast(
-            `Cover must be 624×240 OR SMALLER (uploaded: ${dim.w}×${dim.h})`
+            `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
           );
           return;
         }
@@ -526,16 +571,18 @@ function initRegisterPage() {
         let coverURL = null;
         if (coverFile) {
           const currentUser = auth.currentUser;
+
           if (!currentUser) {
             hideLoader();
             showToast("Please login before uploading cover.");
             return;
           }
+          const optimizedCover = await optimizeCoverImage(coverFile);
           try {
             coverURL = await uploadCoverImage(
               nfcId,
               currentUser.uid,
-              coverFile
+              optimizedCover
             );
           } catch (err) {
             console.error("Cover upload failed:", err);
@@ -764,7 +811,7 @@ function initEditPage() {
         const dim = await validateCoverDimensionsPromise(file);
         if (!dim.ok) {
           showToast(
-            `Cover must be 624×240 OR SMALLER (uploaded: ${dim.w}×${dim.h})`
+            `Cover must be Sqaure or Rectangle (uploaded: ${dim.w}×${dim.h})`
           );
           editCoverInput.value = "";
           return;
@@ -839,7 +886,7 @@ function initEditPage() {
             if (!dim.ok) {
               hideLoader();
               showToast(
-                `Cover must be 624×240 OR SMALLER (uploaded: ${dim.w}×${dim.h})`
+                `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
               );
               return;
             }
@@ -867,10 +914,12 @@ function initEditPage() {
           let coverURL = null;
           if (coverFile) {
             try {
+              const optimizedCover = await optimizeCoverImage(coverFile);
+
               coverURL = await uploadCoverImage(
                 nfcId,
                 currentUser.uid,
-                coverFile
+                optimizedCover
               );
             } catch (err) {
               console.error("Cover upload failed:", err);

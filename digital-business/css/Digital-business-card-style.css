@@ -12,7 +12,10 @@
 body {
   margin: 0;
   font-family: Inter, sans-serif;
-  background: #ffffff;
+  background: #F7F4F2
+
+
+;
   color: var(--text-dark);
 }
 
@@ -153,7 +156,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 85px; /* adjust for avatar overlap */
+  margin-top: 70px; /* adjust for avatar overlap */
   margin-bottom: 10px;
   text-align: center;
   width: 95%;
@@ -190,10 +193,12 @@ body {
 }
 
 .profile-card p.position {
+  margin-top: 0%;
   font-size: 18px;
   color: var(--text-muted, #555);
   margin-bottom: 20px;
 }
+
 
 /* Edit Form */
 
@@ -939,7 +944,8 @@ footer span {
   }
 
   .logo {
-    width: 70%;
+    width: auto;
+    height: 80%;
   }
 
   .avatar-wrapper {
