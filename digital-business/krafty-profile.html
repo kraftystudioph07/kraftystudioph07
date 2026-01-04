@@ -10,6 +10,12 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
+
+    <!-- Swiper CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+    />
   </head>
   <body>
     <!-- Loader -->
@@ -97,6 +103,13 @@
           </a>
         </div>
 
+        <div class="page" id ="galleryCarousel">
+          <h1>Our Product / Client</h1>
+          <div class="swiper gallery-swiper">
+            <div class="swiper-wrapper" id="galleryWrapper"></div>
+          </div>
+        </div>
+
         <button id="saveContactBtn" class="profile-save-btn">
           <i class="fa-solid fa-floppy-disk"></i>Save My Contact
         </button>
@@ -104,7 +117,7 @@
     </div>
 
     <div id="toast" class="toast"></div>
-
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

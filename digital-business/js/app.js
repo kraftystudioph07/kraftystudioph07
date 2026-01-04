@@ -18,6 +18,7 @@ import {
   ref,
   uploadBytes,
   getDownloadURL,
+  deleteObject,
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-storage.js";
 
 /* ==========================
@@ -56,6 +57,7 @@ const registrationDiv = $("registrationDiv");
 const editDiv = $("editDiv");
 const profileDivElem = $("profileDiv");
 const loginDiv = $("loginDiv");
+const galleryCarousel = $("galleryCarousel");
 
 const regSaveBtn = $("regSaveBtn");
 const editSaveBtn = $("editSaveBtn");
@@ -108,12 +110,26 @@ const regCoverPreview = $("regCoverPreview");
 const editCoverInput = $("editCover");
 const editCoverPreview = $("editCoverPreview");
 
+// Gallery Image
+const editGallery = document.getElementById("editGallery");
+const galleryPreview = document.getElementById("galleryPreview");
+const galleryCounter = document.getElementById("galleryCounter");
+let existingImages = [];
+let newImages = [];
+let deletedImages = [];
+let hasUnsavedChanges = false;
+const wrapper = document.getElementById("galleryWrapper");
+const swiperElem = document.querySelector(".gallery-swiper");
+
 // Other helpers
 const togglePassword = $("togglePassword");
 const toggleLoginPassword = $("toggleLoginPassword");
 const toastElem = $("toast");
 const loaderOverlay = $("loaderOverlay");
 const saveContactBtn = $("saveContactBtn");
+const accordion = document.querySelector(".accordion");
+const accordionToggle = document.getElementById("galleryAccordionToggle");
+const accordionBody = document.getElementById("galleryAccordionBody");
 
 /* ==========================
    Loader & Toast
@@ -236,6 +252,61 @@ function optimizeCoverImage(file) {
   });
 }
 
+// Compress Gallery Image
+async function compressImage(file, max = 1200, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      img.src = reader.result;
+    };
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Resize
+      const ratio = Math.min(max / width, max / height, 1);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const isPNG = file.type === "image/png";
+
+      const outputType = isPNG ? "image/png" : "image/jpeg";
+      const outputQuality = isPNG ? undefined : quality;
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Compression failed"));
+            return;
+          }
+
+          resolve(
+            new File([blob], file.name, {
+              type: outputType,
+            })
+          );
+        },
+        outputType,
+        outputQuality
+      );
+    };
+
+    img.onerror = reject;
+    reader.onerror = reject;
+
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ==========================
    loadProfile - loads name/position/photo/cover/socials
    ========================== */
@@ -244,6 +315,7 @@ async function loadProfile() {
   if (registrationDiv) registrationDiv.style.display = "none";
   if (editDiv) editDiv.style.display = "none";
   if (profileDivElem) profileDivElem.style.display = "none";
+  if (galleryCarousel) galleryCarousel.style.display = "none";
   if (loginDiv) loginDiv.style.display = "none";
 
   // Detect which page we are on
@@ -320,7 +392,7 @@ async function loadProfile() {
     // Load only if we are on profile page
     if (currentPage.includes("krafty-profile")) {
       if (profileDivElem) profileDivElem.style.display = "block";
-
+      
       if (profileName) profileName.textContent = data.name || "";
       if (profilePosition) profilePosition.textContent = data.position || "";
 
@@ -402,6 +474,8 @@ async function loadProfile() {
         socialRow.style.display = hasAnySocial ? "flex" : "none";
         profilesavebtn.style.margin = hasAnySocial ? "10px auto" : "0 auto";
       }
+
+      loadGallery();
     }
   } catch (err) {
     console.error("loadProfile error:", err);
@@ -747,6 +821,7 @@ function initEditPage() {
       window.location.href = `krafty-login.html?id=${encodeURIComponent(
         nfcId
       )}`;
+
       return;
     }
 
@@ -756,6 +831,7 @@ function initEditPage() {
         window.location.href = `krafty-login.html?id=${encodeURIComponent(
           nfcId
         )}`;
+
         return;
       }
       const data = userSnap.data();
@@ -763,6 +839,7 @@ function initEditPage() {
         window.location.href = `krafty-login.html?id=${encodeURIComponent(
           nfcId
         )}`;
+
         return;
       }
 
@@ -773,6 +850,7 @@ function initEditPage() {
       // populate & listeners
       populateEditForm(data);
       setupEditListeners();
+      loadExisting(nfcId, db);
     } catch (err) {
       console.error("Edit auth check failed", err);
       window.location.href = `krafty-login.html?id=${encodeURIComponent(
@@ -838,12 +916,60 @@ function initEditPage() {
         reader.readAsDataURL(file);
       });
     }
+    // Accordion in the edit page
+    accordionToggle.addEventListener("click", () => {
+      const isOpen = accordion.classList.contains("open");
+
+      if (isOpen) {
+        const startHeight = accordionBody.scrollHeight;
+
+        accordionBody.style.height = startHeight + "px";
+        accordionBody.offsetHeight;
+
+        accordionBody.style.height = "0px";
+        accordion.classList.remove("open");
+        accordionToggle.setAttribute("aria-expanded", "false");
+      } else {
+        const targetHeight = accordionBody.scrollHeight;
+
+        accordionBody.style.height = "0px";
+        accordion.classList.add("open");
+        accordionToggle.setAttribute("aria-expanded", "true");
+
+        accordionBody.offsetHeight;
+
+        accordionBody.style.height = targetHeight + "px";
+
+        accordionBody.addEventListener(
+          "transitionend",
+          () => {
+            accordionBody.style.height = "auto";
+          },
+          { once: true }
+        );
+      }
+    });
+
+    /* ================= SELECT ================= */
+    editGallery.addEventListener("change", async () => {
+      const available = 5 - (existingImages.length + newImages.length);
+      const files = Array.from(editGallery.files).slice(0, available);
+
+      for (const file of files) {
+        newImages.push({ file: await compressImage(file), caption: "" });
+      }
+
+      editGallery.value = "";
+      hasUnsavedChanges = true;
+      renderGallery();
+    });
 
     // Save changes
     if (editSaveBtn) {
       // remove and reattach to avoid duplicate listeners
       editSaveBtn.replaceWith(editSaveBtn.cloneNode(true));
       const newSave = $("editSaveBtn");
+
       newSave.addEventListener("click", async () => {
         const currentUser = auth.currentUser;
         if (!currentUser) {
@@ -854,13 +980,17 @@ function initEditPage() {
         }
 
         showLoader();
+
         try {
-          const userSnap = await getDoc(doc(db, "users", nfcId));
+          const userRef = doc(db, "users", nfcId);
+          const userSnap = await getDoc(userRef);
+
           if (!userSnap.exists()) {
             hideLoader();
             showToast("Profile not found");
             return;
           }
+
           const data = userSnap.data();
           if (data.authUid !== currentUser.uid) {
             hideLoader();
@@ -868,11 +998,14 @@ function initEditPage() {
             return;
           }
 
-          // uploads
+          /* =====================
+         PROFILE / COVER
+      ===================== */
           const photoFile = editPhotoInput?.files?.[0];
           const coverFile = editCoverInput?.files?.[0];
 
           for (const f of [photoFile, coverFile]) {
+            if (!f) continue;
             const v = validateImageFile(f);
             if (!v.ok) {
               hideLoader();
@@ -892,50 +1025,65 @@ function initEditPage() {
             }
           }
 
-          let photoURL = null;
+          let photoURL = data.photoUrl || "images/default-profile.png";
           if (photoFile) {
-            try {
-              photoURL = await uploadProfilePhoto(
-                nfcId,
-                currentUser.uid,
-                photoFile
-              );
-            } catch (err) {
-              console.error("Profile photo upload failed:", err);
-              if (err?.code === "storage/unauthorized")
-                showToast("Profile photo upload denied.");
-              else
-                showToast(
-                  "Profile photo upload failed: " + (err.message || err.code)
-                );
-            }
+            photoURL = await uploadProfilePhoto(
+              nfcId,
+              currentUser.uid,
+              photoFile
+            );
           }
 
-          let coverURL = null;
+          let coverURL = data.coverUrl || "images/KraftyMain.png";
           if (coverFile) {
-            try {
-              const optimizedCover = await optimizeCoverImage(coverFile);
+            const optimizedCover = await optimizeCoverImage(coverFile);
+            coverURL = await uploadCoverImage(
+              nfcId,
+              currentUser.uid,
+              optimizedCover
+            );
+          }
 
-              coverURL = await uploadCoverImage(
-                nfcId,
-                currentUser.uid,
-                optimizedCover
-              );
+          /* =====================
+         GALLERY SAVE
+      ===================== */
+
+          // Upload new gallery images
+          for (const img of newImages) {
+            const fileName = `${currentUser.uid}_${Date.now()}`;
+            const path = `gallery/${nfcId}/${currentUser.uid}/${fileName}`;
+
+            const imgRef = ref(storage, path);
+
+            await uploadBytes(imgRef, img.file);
+            const url = await getDownloadURL(imgRef);
+
+            existingImages.push({
+              path, // ✅ REQUIRED
+              url,
+              caption: img.caption || "",
+            });
+          }
+
+          // Delete removed gallery images
+          for (const img of deletedImages) {
+            try {
+              console.log("DELETE QUEUE:", deletedImages);
+              await deleteObject(ref(storage, img.path));
             } catch (err) {
-              console.error("Cover upload failed:", err);
-              if (err?.code === "storage/unauthorized")
-                showToast("Cover upload denied.");
-              else
-                showToast("Cover upload failed: " + (err.message || err.code));
+              console.warn("Gallery delete skipped:", err?.code);
             }
           }
 
+          /* =====================
+         FINAL FIRESTORE UPDATE
+      ===================== */
           const updated = {
             name: editName?.value?.trim() || data.name || "",
             position: editPosition?.value?.trim() || data.position || "",
             email: data.email || currentUser.email || "",
-            photoUrl: photoURL || data.photoUrl || "images/default-profile.png",
-            coverUrl: coverURL || data.coverUrl || "images/KraftyMain.png",
+            photoUrl: photoURL,
+            coverUrl: coverURL,
             socials: {
               phone: editPhone
                 ? editPhone.value.trim()
@@ -956,23 +1104,30 @@ function initEditPage() {
                 ? editLinkedin.value.trim()
                 : data.socials?.linkedin ?? "",
             },
+            productImages: existingImages,
             authUid: currentUser.uid,
           };
 
-          await setDoc(doc(db, "users", nfcId), updated);
+          await setDoc(userRef, updated);
 
-          if (photoURL && profilePhoto) profilePhoto.src = photoURL;
-          if (coverURL && profileCoverImage) profileCoverImage.src = coverURL;
+          /* =====================
+         UI CLEANUP
+      ===================== */
+          hasUnsavedChanges = false;
+
+          if (profilePhoto) profilePhoto.src = photoURL;
+          if (profileCoverImage) profileCoverImage.src = coverURL;
 
           hideLoader();
           showToast("Profile updated!", 3000);
+
           window.location.href = `krafty-profile.html?id=${encodeURIComponent(
             nfcId
           )}`;
         } catch (err) {
           console.error("edit save error", err);
           hideLoader();
-          showToast("Update error: " + err.message, 5000);
+          showToast("Update error: " + (err.message || err.code), 5000);
         }
       });
     }
@@ -1185,6 +1340,154 @@ if (regPhoto && photoPreview) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+/* ================= LOAD Gallery ================= */
+async function loadExisting(nfcId, db) {
+  existingImages = await loadProductImages(nfcId, db);
+  renderGallery();
+}
+
+async function loadProductImages(nfcId, db) {
+  try {
+    const snap = await getDoc(doc(db, "users", nfcId));
+    return snap.exists() ? snap.data().productImages || [] : [];
+  } catch (err) {
+    console.error("loadProductImages failed:", err);
+    return [];
+  }
+}
+
+function renderGallery() {
+  if (!galleryPreview || !galleryCounter) return;
+
+  const total = existingImages.length + newImages.length;
+
+  // Hide preview if empty
+  galleryPreview.style.display = total === 0 ? "none" : "grid";
+  galleryPreview.innerHTML = "";
+
+  // Render existing images
+  existingImages.forEach((item, index) => {
+    const wrap = document.createElement("div");
+    wrap.className = "gallery-item";
+
+    const img = document.createElement("img");
+    img.src = item.url;
+
+    const caption = document.createElement("input");
+    caption.placeholder = "Caption";
+    caption.value = item.caption || "";
+    caption.oninput = () => {
+      existingImages[index].caption = caption.value;
+      hasUnsavedChanges = true;
+    };
+
+    const del = document.createElement("button");
+    del.className = "gallery-delete";
+    del.textContent = "×";
+    del.onclick = () => {
+      hasUnsavedChanges = true;
+      deletedImages.push(item);
+      existingImages.splice(index, 1);
+      renderGallery();
+    };
+
+    wrap.append(img, del, caption);
+    galleryPreview.appendChild(wrap);
+    console.log("existingImages", existingImages);
+    console.log("newImages", newImages);
+    console.log("deletedImages", deletedImages);
+  });
+
+  newImages.forEach((item, index) => {
+    const wrap = document.createElement("div");
+    wrap.className = "gallery-item";
+
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(item.file);
+
+    const caption = document.createElement("input");
+    caption.placeholder = "Caption";
+    caption.value = item.caption || "";
+    caption.oninput = () => {
+      newImages[index].caption = caption.value;
+      hasUnsavedChanges = true;
+    };
+
+    const del = document.createElement("button");
+    del.className = "gallery-delete";
+    del.textContent = "×";
+    del.onclick = () => {
+      hasUnsavedChanges = true;
+      newImages.splice(index, 1);
+      renderGallery();
+    };
+
+    wrap.append(img, del, caption);
+    galleryPreview.appendChild(wrap);
+  });
+
+  galleryCounter.textContent = `${total} / 5 images used`;
+}
+
+async function loadGallery() {
+  const images = await loadProductImages(nfcId, db);
+
+  if (!images.length) return;
+
+  images.forEach((item) => {
+    if (!item?.url) return;
+
+    const slide = document.createElement("div");
+    slide.className = "swiper-slide";
+
+    slide.innerHTML = `
+      <div class="image-frame">
+        <img src="${item.url}" alt="Product image" loading="lazy" />
+      </div>
+    `;
+
+    wrapper.appendChild(slide);
+  });
+  galleryCarousel.style.display = "block";
+  swiperElem.style.display = "block";
+  initSwiper();
+  bindFullscreen();
+}
+
+function initSwiper() {
+  const swiper = new Swiper(".gallery-swiper", {
+    slidesPerView: "auto",
+    spaceBetween: 16,
+    loop: true,
+
+    autoplay: {
+      delay: 0,
+      disableOnInteraction: false,
+    },
+
+    speed: 4000,
+  });
+
+  // swiper.on("reachEnd", () => {
+  //   setTimeout(() => {
+  //     swiper.slideTo(0, 1200); // 👈 smooth animation back
+  //   }, 300);
+  // });
+}
+function bindFullscreen() {
+  document.querySelectorAll(".gallery-swiper img").forEach((img) => {
+    img.addEventListener("click", () => openViewer(img.src));
+  });
+}
+
+function openViewer(src) {
+  const overlay = document.createElement("div");
+  overlay.className = "image-viewer";
+  overlay.innerHTML = `<img src="${src}" />`;
+  overlay.addEventListener("click", () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 /* ==========================

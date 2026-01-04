@@ -94,6 +94,43 @@
         <input type="text" id="editLinkedin" placeholder="LinkedIn" />
       </div>
 
+
+      <div class="accordion">
+
+  <button class="accordion-header" id="galleryAccordionToggle">
+    <span>Add Product / Client Images</span>
+    <span id="galleryCounter" class="accordion-counter">0 / 5</span>
+    <i class="fa-solid fa-chevron-down accordion-arrow"></i>
+
+  </button>
+
+  <div class="accordion-body" id="galleryAccordionBody">
+
+    <!-- Upload card -->
+    <label class="gallery-upload-card">
+      <input
+        type="file"
+        id="editGallery"
+        accept="image/*"
+        multiple
+        hidden
+      />
+
+      <div class="upload-content">
+        <div class="upload-icon">＋</div>
+        <div class="upload-text">
+          <strong>Add images</strong>
+          <span>Tap or drag up to 5 images</span>
+        </div>
+      </div>
+    </label>
+
+    <!-- Gallery preview -->
+    <div id="galleryPreview" class="gallery-preview"></div>
+
+  </div>
+</div>
+
       <button id="editSaveBtn">Save Changes</button>
       <button id="logoutBtn" class="logout">Log Out</button>
     </div>
