@@ -1395,9 +1395,6 @@ function renderGallery() {
 
     wrap.append(img, del, caption);
     galleryPreview.appendChild(wrap);
-    console.log("existingImages", existingImages);
-    console.log("newImages", newImages);
-    console.log("deletedImages", deletedImages);
   });
 
   newImages.forEach((item, index) => {
