@@ -1457,22 +1457,14 @@ function initSwiper() {
   const swiper = new Swiper(".gallery-swiper", {
     slidesPerView: "auto",
     spaceBetween: 16,
-    loop: true,
-
-    autoplay: {
-      delay: 0,
-      disableOnInteraction: false,
-    },
-
-    speed: 4000,
+    pagination: {
+    el: '.swiper-pagination',
+    type: 'bullets',
+    clickable: true,
+  },
   });
-
-  // swiper.on("reachEnd", () => {
-  //   setTimeout(() => {
-  //     swiper.slideTo(0, 1200); // 👈 smooth animation back
-  //   }, 300);
-  // });
 }
+
 function bindFullscreen() {
   document.querySelectorAll(".gallery-swiper img").forEach((img) => {
     img.addEventListener("click", () => openViewer(img.src));
