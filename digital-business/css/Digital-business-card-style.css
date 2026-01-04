@@ -1,5 +1,5 @@
 :root {
-  --orange: #db4a2b;
+  --brand-color: #db4a2b;
   --text-dark: #1a1a1a;
   --text-muted: #555;
   --card-bg: #ffffff;
@@ -12,10 +12,7 @@
 body {
   margin: 0;
   font-family: Inter, sans-serif;
-  background: #F7F4F2
-
-
-;
+  background: #F7F4F2;
   color: var(--text-dark);
 }
 
@@ -23,7 +20,7 @@ body {
 .header {
   width: 100%;
   height: 240px;
-  background: var(--orange);
+  background: var(--brand-color);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -268,7 +265,8 @@ body {
 #editFacebook,
 #editInstagram,
 #editTikTok,
-#editLinkedin {
+#editLinkedin,
+#hexInput {
   width: 100%;
   padding: 14px 18px;
   margin: 10px 0;
@@ -671,7 +669,7 @@ body {
 
 #loginEmail::placeholder,
 #loginPassword::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: #db4a2b;
 }
 
 #loginEmail:focus,
@@ -802,7 +800,8 @@ body {
   font-weight: 500;
   border: none;
   border-radius: 12px;
-  background: rgba(219, 74, 43, 0.85);
+  background: var(--brand-color);
+  opacity: 0.9;
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
@@ -815,7 +814,8 @@ body {
 }
 
 .profile-save-btn:hover {
-  background: rgba(219, 74, 43, 1);
+  background: var(--brand-color);
+  opacity: 1;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
@@ -834,7 +834,8 @@ body {
   font-weight: 500;
   border: none;
   border-radius: 12px;
-  background: rgba(219, 74, 43, 0.85);
+  background: var(--brand-color);
+  opacity: 0.9;
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
@@ -847,7 +848,8 @@ body {
 }
 
 .contact-btn:hover {
-  background: rgba(219, 74, 43, 1);
+  background: var(--brand-color);
+  opacity: 1;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
@@ -915,7 +917,7 @@ footer {
 }
 
 footer span {
-  color: var(--orange);
+  color: var(--brand-color);
 }
 
 /* ===============================
@@ -1207,3 +1209,4 @@ footer span {
   font-size: 12px;
   font-weight: 500;
 }
+
