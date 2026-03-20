@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Love Letter</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Great+Vibes&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+      background: linear-gradient(135deg, #ffe6e6, #fff);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 40px 20px;
+      overflow-y: auto;
+    }
+
+    .letter {
+      background: #fff;
+      padding: 30px 25px;
+      max-width: 600px;
+      width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+      position: relative;
+      animation: fadeIn 1.5s ease;
+    }
+
+    h1 {
+      text-align: center;
+      color: #d6336c;
+      margin-bottom: 20px;
+      font-family: 'Great Vibes', cursive;
+      font-size: 2.2rem;
+      animation: slideDown 1s ease;
+    }
+
+    .content {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #333;
+      white-space: pre-line;
+      opacity: 0;
+      animation: typingFade 2s ease forwards;
+      animation-delay: 1s;
+      margin-bottom: 10px;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: #ffb3b3;
+      border-radius: 10px;
+    }
+
+    .signature {
+      margin-top: 30px;
+      text-align: right;
+      font-style: italic;
+      color: #555;
+      opacity: 0;
+      animation: fadeIn 2s ease forwards;
+      animation-delay: 2s;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #aaa;
+      opacity: 0;
+      animation: fadeIn 2.5s ease forwards;
+      animation-delay: 2.5s;
+    }
+
+    /* Floating hearts */
+    .heart {
+      position: fixed;
+      bottom: -20px;
+      font-size: 20px;
+      color: #ff4d6d;
+      animation: floatUp 6s linear infinite;
+      opacity: 0.7;
+    }
+
+    @keyframes floatUp {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateY(-110vh) scale(1.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes typingFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 768px) {
+      .letter {
+        padding: 25px 20px;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      .content {
+        font-size: 15px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .letter {
+        padding: 20px 15px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+
+      .content {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="letter">
+    <h1>What's up sungay 😈</h1>
+
+    <div class="content">
+I JWU AND I HAD TO COMPOSE A MESSAGE BECAUSE IT’S YOUR BIRTHDAY. WHATEVER ETO NA.
+
+HAPPY HAPPY BIRTHDAY, BETHINNA!!!! SKL YUNG BG SONG SA KUSINA AY TUWING UMUULAN BY REGINE SO PLEASE LISTEN TO THAT AS WELL KASI WALA LANG. ANW, HAPPY BIRTHDAY TO YOU!! I KNOW YOU THINK THIS IS TOO MUCH BUT IT’S NOT BECAUSE WHAT YOU DO FOR ME EVERYDAY IS ALREADY SO MUCH MORE THAN WHAT I AM DOING RIGHT NOW. THANK YOU FOR ALL THE PATIENCE, FOR ALL THE UNDERSTANDING, AND FOR PUTTING UP WITH ME EVEN IF I ANNOY YOU ALL THE FUCKING TIME. THANK YOU FOR BEING SO HELPFUL. YOU’RE ONE OF THOSE PEOPLE THAT I TRUST SO I HOPE YOU’LL NEVER CHANGE.
+
+DI KO NAMAN AKALAIN NA SOMEONE WHO HAS INSANE FACE CARD AND GREAT PERSONALITY WILL ENTER MY LIFE KAYA I AM SO THANKFUL KASI I WAS ABLE TO GET TO KNOW YOU. THANK YOU SO MUCH FOR EVERYTHING, BETHINNA. REALLY. 
+
+I HOPE YOU’RE HAPPY ON YOUR BIRTHDAY. THIS IS YOUR FIRST BIRTHDAY NA KILALA KITA KAYA GUSTO KO EVERYTHING THAT I GIVE YOU IS SPECIAL. THANK GOD I HAVE SUPPORTIVE FRIENDS WHO HELPED ME WITH THIS. AGAIN, THANK YOU FOR EVERYTHING AND PLEASE KNOW NA IKAW ANG PINAKA MAGANDANG TAONG NAKITA KO IN MY ENTIRE EXISTENCE (ASIDE SA MGA KPOP IDOLS OFC). IKAW ANG PINAKA MAGANDA SA TANZA AT PINAKA MAGANDA SA LAHAT HAHAHAHA I HOPE YOU’LL APPRECIATE THIS GIFT. HAPPY 25th BIRTHDAY, BETHINNA!!!! PLEASE BE HAPPY ALL THE TIME AND I HOPE YOU’LL ACHIEVE EVERYTHING THAT YOU WANT.
+
+DITO LANG AKO ALWAYS FOR YOU. HAPPY BIRTHDAY, SUNGAY!!! 😈
+    </div>
+
+    <div class="signature">
+      -K,<br>
+      PS
+      I WILL NEVER EVER STOP PESTERING AND ANNOYING YOU FOR AS LONG AS I LIVE. 😮‍💨😇
+    </div>
+
+    <!-- <div class="footer">
+      Made with love ✨
+    </div> -->
+  </div>
+
+  <script>
+    // Floating hearts generator
+    function createHeart() {
+      const heart = document.createElement('div');
+      heart.classList.add('heart');
+      heart.innerText = '❤️';
+      heart.style.left = Math.random() * 100 + 'vw';
+      heart.style.fontSize = (12 + Math.random() * 20) + 'px';
+      heart.style.animationDuration = (4 + Math.random() * 3) + 's';
+      document.body.appendChild(heart);
+
+      setTimeout(() => {
+        heart.remove();
+      }, 7000);
+    }
+
+    setInterval(createHeart, 400);
+  </script>
+
+</body>
+</html>
