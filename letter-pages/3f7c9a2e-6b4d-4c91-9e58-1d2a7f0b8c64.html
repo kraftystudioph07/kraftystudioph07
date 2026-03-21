@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Birthday Letter</title>
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Great+Vibes&display=swap" rel="stylesheet">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -22,7 +19,51 @@
       align-items: flex-start;
       min-height: 100vh;
       padding: 40px 20px;
+      padding-bottom: 120px;
       overflow-y: auto;
+    }
+
+    /* INTRO SCREEN */
+    .intro {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #ffccd5, #fff);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      text-align: center;
+      animation: fadeIn 1s ease;
+    }
+
+    .intro h2 {
+      font-family: 'Great Vibes', cursive;
+      font-size: 2.5rem;
+      color: #d6336c;
+      margin-bottom: 20px;
+    }
+
+    .play-btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 30px;
+      background: #ff4d6d;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      transition: 0.3s;
+    }
+
+    .play-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1s ease;
     }
 
     .letter {
@@ -32,7 +73,6 @@
       width: 100%;
       border-radius: 16px;
       box-shadow: 0 15px 40px rgba(0,0,0,0.15);
-      position: relative;
       animation: fadeIn 1.5s ease;
     }
 
@@ -75,17 +115,25 @@
       animation-delay: 2s;
     }
 
-    .footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 12px;
-      color: #aaa;
-      opacity: 0;
-      animation: fadeIn 2.5s ease forwards;
-      animation-delay: 2.5s;
+    .spotify-player {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 600px;
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 10;
     }
 
-    /* Floating hearts */
+    iframe {
+      width: 100%;
+      display: block;
+      border: 0;
+    }
+
+        /* Floating hearts */
     .heart {
       position: fixed;
       bottom: -20px;
@@ -153,6 +201,13 @@
 </head>
 <body>
 
+  <!-- INTRO -->
+  <div class="intro" id="intro">
+    <h2>Before you read this...</h2>
+    <button class="play-btn" onclick="startExperience()">Play our song ❤️</button>
+  </div>
+
+  <!-- LETTER -->
   <div class="letter">
     <h1>What's up sungay 😈</h1>
 
@@ -161,7 +216,7 @@ I JWU AND I HAD TO COMPOSE A MESSAGE BECAUSE IT’S YOUR BIRTHDAY. WHATEVER ETO 
 
 HAPPY HAPPY BIRTHDAY, BETHINNA!!!! SKL YUNG BG SONG SA KUSINA AY TUWING UMUULAN BY REGINE SO PLEASE LISTEN TO THAT AS WELL KASI WALA LANG. ANW, HAPPY BIRTHDAY TO YOU!! I KNOW YOU THINK THIS IS TOO MUCH BUT IT’S NOT BECAUSE WHAT YOU DO FOR ME EVERYDAY IS ALREADY SO MUCH MORE THAN WHAT I AM DOING RIGHT NOW. THANK YOU FOR ALL THE PATIENCE, FOR ALL THE UNDERSTANDING, AND FOR PUTTING UP WITH ME EVEN IF I ANNOY YOU ALL THE FUCKING TIME. THANK YOU FOR BEING SO HELPFUL. YOU’RE ONE OF THOSE PEOPLE THAT I TRUST SO I HOPE YOU’LL NEVER CHANGE.
 
-DI KO NAMAN AKALAIN NA SOMEONE WHO HAS INSANE FACE CARD AND GREAT PERSONALITY WILL ENTER MY LIFE KAYA I AM SO THANKFUL KASI I WAS ABLE TO GET TO KNOW YOU. THANK YOU SO MUCH FOR EVERYTHING, BETHINNA. REALLY. 
+DI KO NAMAN AKALAIN NA SOMEONE WHO HAS INSANE FACE CARD AND GREAT PERSONALITY WILL ENTER MY LIFE KAYA I AM SO THANKFUL KASI I WAS ABLE TO GET TO KNOW YOU. THANK YOU SO MUCH FOR EVERYTHING, BETHINNA. REALLY.
 
 I HOPE YOU’RE HAPPY ON YOUR BIRTHDAY. THIS IS YOUR FIRST BIRTHDAY NA KILALA KITA KAYA GUSTO KO EVERYTHING THAT I GIVE YOU IS SPECIAL. THANK GOD I HAVE SUPPORTIVE FRIENDS WHO HELPED ME WITH THIS. AGAIN, THANK YOU FOR EVERYTHING AND PLEASE KNOW NA IKAW ANG PINAKA MAGANDANG TAONG NAKITA KO IN MY ENTIRE EXISTENCE (ASIDE SA MGA KPOP IDOLS OFC). IKAW ANG PINAKA MAGANDA SA TANZA AT PINAKA MAGANDA SA LAHAT HAHAHAHA I HOPE YOU’LL APPRECIATE THIS GIFT. HAPPY 25th BIRTHDAY, BETHINNA!!!! PLEASE BE HAPPY ALL THE TIME AND I HOPE YOU’LL ACHIEVE EVERYTHING THAT YOU WANT.
 
@@ -170,16 +225,22 @@ DITO LANG AKO ALWAYS FOR YOU. HAPPY BIRTHDAY, SUNGAY!!! 😈
 
     <div class="signature">
       -K,<br>
-      PS
-      I WILL NEVER EVER STOP PESTERING AND ANNOYING YOU FOR AS LONG AS I LIVE. 😮‍💨😇
+      PS I WILL NEVER EVER STOP PESTERING AND ANNOYING YOU FOR AS LONG AS I LIVE. 😮‍💨😇
     </div>
+  </div>
 
-    <!-- <div class="footer">
-      Made with love ✨
-    </div> -->
+
+
+  <!-- SPOTIFY -->
+  <div class="spotify-player" id="player" style="display:none;">
+    <iframe src="https://open.spotify.com/embed/track/4squZv12LD9M8ooJfoVgZS" height="80" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
   </div>
 
   <script>
+    function startExperience() {
+      document.getElementById('intro').classList.add('hidden');
+      document.getElementById('player').style.display = 'block';
+    }
     // Floating hearts generator
     function createHeart() {
       const heart = document.createElement('div');
@@ -197,6 +258,5 @@ DITO LANG AKO ALWAYS FOR YOU. HAPPY BIRTHDAY, SUNGAY!!! 😈
 
     setInterval(createHeart, 400);
   </script>
-
 </body>
 </html>
