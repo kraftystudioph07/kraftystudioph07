@@ -115,22 +115,55 @@
       animation-delay: 2s;
     }
 
-    .spotify-player {
+    .music-player {
       position: fixed;
       bottom: 10px;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
       max-width: 600px;
+      background: #121212;
+      color: white;
       border-radius: 12px;
-      overflow: hidden;
-      z-index: 10;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
     }
 
-    iframe {
+    .music-player button {
+      background: #1db954;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .track-info {
+      flex: 1;
+    }
+
+    .title {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .progress-bar {
       width: 100%;
-      display: block;
-      border: 0;
+      height: 4px;
+      background: #333;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: #1db954;
     }
 
         /* Floating hearts */
@@ -231,15 +264,45 @@ DITO LANG AKO ALWAYS FOR YOU. HAPPY BIRTHDAY, SUNGAY!!! 😈
 
 
 
-  <!-- SPOTIFY -->
-  <div class="spotify-player" id="player" style="display:none;">
-    <iframe src="https://open.spotify.com/embed/track/4squZv12LD9M8ooJfoVgZS" height="80" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+  <!-- AUDIO player-->
+  <audio id="bgMusic" loop>
+  <source src="/audio/KiraAudio.mp3" type="audio/mpeg">
+  </audio>
+
+<div class="music-player">
+    <button onclick="toggleMusic()" id="playBtn">▶</button>
+    <div class="track-info">
+      <div class="title">Ella Mai - Boo'd Up</div>
+      <div class="progress-bar">
+        <div class="progress" id="progress"></div>
+      </div>
+    </div>
   </div>
 
   <script>
+    const music = document.getElementById('bgMusic');
+    const progress = document.getElementById('progress');
+    const playBtn = document.getElementById('playBtn');
+
+    function toggleMusic() {
+      if (music.paused) {
+        music.play();
+        playBtn.innerText = '⏸';
+      } else {
+        music.pause();
+        playBtn.innerText = '▶';
+      }
+    }
+
+    music.addEventListener('timeupdate', () => {
+      const percent = (music.currentTime / music.duration) * 100;
+      progress.style.width = percent + '%';
+    });
+
     function startExperience() {
       document.getElementById('intro').classList.add('hidden');
-      document.getElementById('player').style.display = 'block';
+      music.play();
+      playBtn.innerText = '⏸';
     }
     // Floating hearts generator
     function createHeart() {
