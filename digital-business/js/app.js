@@ -428,28 +428,50 @@ async function loadProfile() {
         if (!value || value.trim() === "") {
           elem.style.display = "none";
           elem.onclick = null;
+          elem.removeAttribute("data-value");
+
           if (textSpan) textSpan.textContent = "";
+
           return;
         }
 
+        const cleanValue = value.trim();
+
+        // Store the REAL value for the vCard generator
+        elem.dataset.value = cleanValue;
+
         elem.style.display = "flex";
-        if (textSpan) textSpan.textContent = value;
+
+        // Only update text if a dedicated contact-text span exists
+        if (textSpan) {
+          textSpan.textContent =
+            type === "email"
+              ? "Email"
+              : type === "phone"
+                ? "Call"
+                : type === "website"
+                  ? "Website"
+                  : cleanValue;
+        }
 
         if (type === "email") {
           elem.onclick = () => {
-            window.location.href = `mailto:${value}`;
+            window.location.href = `mailto:${cleanValue}`;
           };
         }
 
         if (type === "phone") {
           elem.onclick = () => {
-            window.location.href = `tel:${value}`;
+            window.location.href = `tel:${cleanValue}`;
           };
         }
 
         if (type === "website") {
           elem.onclick = () => {
-            const v = value.startsWith("http") ? value : `https://${value}`;
+            const v = /^https?:\/\//i.test(cleanValue)
+              ? cleanValue
+              : `https://${cleanValue}`;
+
             window.open(v, "_blank");
           };
         }
@@ -1192,9 +1214,9 @@ function initProfilePage() {
       // ====== GET TEXT FIELDS (trimmed) ======
       const name = (profileName?.textContent || "").trim();
       const position = (profilePosition?.textContent || "").trim();
-      const email = (profileEmail?.textContent || "").trim();
-      const phone = (profilePhone?.textContent || "").trim();
-      let website = (profileWebsite?.textContent || "").trim();
+      const email = (profileEmail?.dataset.value || "").trim();
+      const phone = (profilePhone?.dataset.value || "").trim();
+      let website = (profileWebsite?.dataset.value || "").trim();
       const facebook = facebookLink?.href || "";
       const instagram = instagramLink?.href || "";
       const tiktok = tiktokLink?.href || "";
