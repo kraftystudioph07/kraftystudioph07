@@ -78,6 +78,7 @@ const regLinkedin = $("regLinkedin");
 
 const editName = $("editName");
 const editPosition = $("editPosition");
+const editAboutMe = $("editAboutMe");
 const editPhone = $("editPhone");
 const editWebsite = $("editWebsite");
 const editFacebook = $("editFacebook");
@@ -88,6 +89,7 @@ const editLinkedin = $("editLinkedin");
 // Profile display
 const profileName = $("profileName");
 const profilePosition = $("profilePosition");
+const profileAboutMe = $("profileAboutMe");
 const profilePhone = $("profilePhone");
 const profileEmail = $("profileEmail");
 const profileWebsite = $("profileWebsite");
@@ -292,11 +294,11 @@ async function compressImage(file, max = 1200, quality = 0.75) {
           resolve(
             new File([blob], file.name, {
               type: outputType,
-            })
+            }),
           );
         },
         outputType,
-        outputQuality
+        outputQuality,
       );
     };
 
@@ -376,7 +378,7 @@ async function loadProfile() {
         }
       } else {
         window.location.href = `krafty-register.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
       }
 
@@ -392,9 +394,24 @@ async function loadProfile() {
     // Load only if we are on profile page
     if (currentPage.includes("krafty-profile")) {
       if (profileDivElem) profileDivElem.style.display = "block";
-      
+
       if (profileName) profileName.textContent = data.name || "";
       if (profilePosition) profilePosition.textContent = data.position || "";
+      if (profileAboutMe) {
+        const aboutMeCard = document.querySelector(".about-me-card");
+
+        if (data.aboutMe?.trim()) {
+          profileAboutMe.textContent = data.aboutMe.trim();
+
+          if (aboutMeCard) {
+            aboutMeCard.style.display = "flex";
+          }
+        } else {
+          if (aboutMeCard) {
+            aboutMeCard.style.display = "none";
+          }
+        }
+      }
 
       if (profilePhoto)
         profilePhoto.src = data.photoUrl || "images/default-profile.png";
@@ -461,7 +478,7 @@ async function loadProfile() {
           el.style.display = "none";
         } else {
           el.href = normalizeUrl(url);
-          el.style.display = "inline-block";
+          el.style.display = "inline-flex";
         }
       });
       const socialRow = document.querySelector(".social-row");
@@ -472,7 +489,7 @@ async function loadProfile() {
         const hasAnySocial = socials.some((p) => data.socials?.[p]?.trim());
 
         socialRow.style.display = hasAnySocial ? "flex" : "none";
-        profilesavebtn.style.margin = hasAnySocial ? "10px auto" : "0 auto";
+        profilesavebtn.style.margin = hasAnySocial ? "10px auto" : "10px auto";
       }
 
       loadGallery();
@@ -526,7 +543,7 @@ function initRegisterPage() {
       const dim = await validateCoverDimensionsPromise(file);
       if (!dim.ok) {
         showToast(
-          `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
+          `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
         );
         regCover.value = "";
         return;
@@ -575,7 +592,7 @@ function initRegisterPage() {
         showToast(
           `${missing.join(", ")} ${
             missing.length === 1 ? "is" : "are"
-          } required`
+          } required`,
         );
         return;
       }
@@ -601,7 +618,7 @@ function initRegisterPage() {
         if (!dim.ok) {
           hideLoader();
           showToast(
-            `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
+            `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
           );
           return;
         }
@@ -612,7 +629,7 @@ function initRegisterPage() {
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
-          password
+          password,
         );
         uid = userCredential.user.uid;
 
@@ -634,7 +651,7 @@ function initRegisterPage() {
               showToast("Profile photo upload denied by server rules.");
             } else {
               showToast(
-                "Profile photo upload failed: " + (err.message || err.code)
+                "Profile photo upload failed: " + (err.message || err.code),
               );
             }
             // continue: allow registration even if image upload failed
@@ -656,7 +673,7 @@ function initRegisterPage() {
             coverURL = await uploadCoverImage(
               nfcId,
               currentUser.uid,
-              optimizedCover
+              optimizedCover,
             );
           } catch (err) {
             console.error("Cover upload failed:", err);
@@ -691,7 +708,7 @@ function initRegisterPage() {
         hideLoader();
         showToast("Profile registered!", 3000);
         window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
       } catch (err) {
         hideLoader();
@@ -742,7 +759,7 @@ function initLoginPage() {
     logoutBtn.addEventListener("click", () => {
       if (nfcId)
         window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
       else window.location.href = "krafty-profile.html";
     });
@@ -761,7 +778,7 @@ function initLoginPage() {
         const credential = await signInWithEmailAndPassword(
           auth,
           email,
-          password
+          password,
         );
         const user = credential.user;
         if (!nfcId) {
@@ -783,7 +800,7 @@ function initLoginPage() {
         }
         hideLoader();
         window.location.href = `krafty-edit.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
       } catch (err) {
         hideLoader();
@@ -819,7 +836,7 @@ function initEditPage() {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
       window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId
+        nfcId,
       )}`;
 
       return;
@@ -829,7 +846,7 @@ function initEditPage() {
       const userSnap = await getDoc(doc(db, "users", nfcId));
       if (!userSnap.exists()) {
         window.location.href = `krafty-login.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
 
         return;
@@ -837,7 +854,7 @@ function initEditPage() {
       const data = userSnap.data();
       if (data.authUid !== user.uid) {
         window.location.href = `krafty-login.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
 
         return;
@@ -854,7 +871,7 @@ function initEditPage() {
     } catch (err) {
       console.error("Edit auth check failed", err);
       window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId
+        nfcId,
       )}`;
     }
   });
@@ -862,6 +879,7 @@ function initEditPage() {
   function populateEditForm(data) {
     if (editName) editName.value = data.name || "";
     if (editPosition) editPosition.value = data.position || "";
+    if (editAboutMe) editAboutMe.value = data.aboutMe || "";
     if (editPhone) editPhone.value = data.socials?.phone || "";
     if (editWebsite) editWebsite.value = data.socials?.website || "";
     if (editFacebook) editFacebook.value = data.socials?.facebook || "";
@@ -889,7 +907,7 @@ function initEditPage() {
         const dim = await validateCoverDimensionsPromise(file);
         if (!dim.ok) {
           showToast(
-            `Cover must be Sqaure or Rectangle (uploaded: ${dim.w}×${dim.h})`
+            `Cover must be Sqaure or Rectangle (uploaded: ${dim.w}×${dim.h})`,
           );
           editCoverInput.value = "";
           return;
@@ -945,7 +963,7 @@ function initEditPage() {
           () => {
             accordionBody.style.height = "auto";
           },
-          { once: true }
+          { once: true },
         );
       }
     });
@@ -974,7 +992,7 @@ function initEditPage() {
         const currentUser = auth.currentUser;
         if (!currentUser) {
           window.location.href = `krafty-login.html?id=${encodeURIComponent(
-            nfcId
+            nfcId,
           )}`;
           return;
         }
@@ -1019,7 +1037,7 @@ function initEditPage() {
             if (!dim.ok) {
               hideLoader();
               showToast(
-                `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`
+                `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
               );
               return;
             }
@@ -1030,7 +1048,7 @@ function initEditPage() {
             photoURL = await uploadProfilePhoto(
               nfcId,
               currentUser.uid,
-              photoFile
+              photoFile,
             );
           }
 
@@ -1040,7 +1058,7 @@ function initEditPage() {
             coverURL = await uploadCoverImage(
               nfcId,
               currentUser.uid,
-              optimizedCover
+              optimizedCover,
             );
           }
 
@@ -1081,28 +1099,29 @@ function initEditPage() {
           const updated = {
             name: editName?.value?.trim() || data.name || "",
             position: editPosition?.value?.trim() || data.position || "",
+            aboutMe: editAboutMe?.value?.trim() || data.aboutMe || "",
             email: data.email || currentUser.email || "",
             photoUrl: photoURL,
             coverUrl: coverURL,
             socials: {
               phone: editPhone
                 ? editPhone.value.trim()
-                : data.socials?.phone ?? "",
+                : (data.socials?.phone ?? ""),
               website: editWebsite
                 ? editWebsite.value.trim()
-                : data.socials?.website ?? "",
+                : (data.socials?.website ?? ""),
               facebook: editFacebook
                 ? editFacebook.value.trim()
-                : data.socials?.facebook ?? "",
+                : (data.socials?.facebook ?? ""),
               instagram: editInstagram
                 ? editInstagram.value.trim()
-                : data.socials?.instagram ?? "",
+                : (data.socials?.instagram ?? ""),
               tiktok: editTikTok
                 ? editTikTok.value.trim()
-                : data.socials?.tiktok ?? "",
+                : (data.socials?.tiktok ?? ""),
               linkedin: editLinkedin
                 ? editLinkedin.value.trim()
-                : data.socials?.linkedin ?? "",
+                : (data.socials?.linkedin ?? ""),
             },
             productImages: existingImages,
             authUid: currentUser.uid,
@@ -1122,7 +1141,7 @@ function initEditPage() {
           showToast("Profile updated!", 3000);
 
           window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-            nfcId
+            nfcId,
           )}`;
         } catch (err) {
           console.error("edit save error", err);
@@ -1138,7 +1157,7 @@ function initEditPage() {
         try {
           await signOut(auth);
           window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-            nfcId
+            nfcId,
           )}`;
         } catch (err) {
           console.error("logout failed", err);
@@ -1157,7 +1176,7 @@ function initProfilePage() {
   if (loginEditBtn) {
     loginEditBtn.addEventListener("click", () => {
       window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId
+        nfcId,
       )}`;
     });
   }
@@ -1308,7 +1327,7 @@ function initProfilePage() {
       try {
         await signOut(auth);
         window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId
+          nfcId,
         )}`;
       } catch (err) {
         console.error("logout failed", err);
@@ -1458,10 +1477,10 @@ function initSwiper() {
     slidesPerView: "auto",
     spaceBetween: 16,
     pagination: {
-    el: '.swiper-pagination',
-    type: 'bullets',
-    clickable: true,
-  },
+      el: ".swiper-pagination",
+      type: "bullets",
+      clickable: true,
+    },
   });
 }
 

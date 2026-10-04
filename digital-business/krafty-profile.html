@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -17,7 +17,7 @@
       href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
     />
   </head>
-  <body>
+  <body class="profile-page">
     <!-- Loader -->
     <div id="loaderOverlay">
       <div class="loader-content">
@@ -50,21 +50,32 @@
         <p id="profilePosition" class="position" data-field="position">
           Position
         </p>
+        <!-- ADDED ABOUT ME -->
+        <div class="about-me-card">
+          <div class="about-me-icon">
+            <i class="fas fa-user"></i>
+          </div>
+
+          <div class="about-me-content">
+            <div class="about-me-title">About Me</div>
+            <p id="profileAboutMe"></p>
+          </div>
+        </div>
 
         <div class="contact-list">
           <button id="profilePhone" class="contact-btn">
             <i class="fa-solid fa-phone"></i>
-            <span class="contact-text"></span>
+            <span>Call</span>
           </button>
 
           <button id="profileEmail" class="contact-btn">
             <i class="fa-solid fa-envelope"></i>
-            <span class="contact-text"></span>
+            <span>Email</span>
           </button>
 
           <button id="profileWebsite" class="contact-btn">
             <i class="fa-solid fa-globe"></i>
-            <span class="contact-text"></span>
+            <span>Website</span>
           </button>
         </div>
 
@@ -104,18 +115,16 @@
         </div>
 
         <button id="saveContactBtn" class="profile-save-btn">
-          <i class="fa-solid fa-floppy-disk"></i>Save My Contact
+          <i class="fa-solid fa-floppy-disk"></i>Save Contact
         </button>
 
-        <div class="page" id ="galleryCarousel">
+        <div class="page" id="galleryCarousel">
           <h2>Our Product / Client</h2>
           <div class="swiper gallery-swiper">
             <div class="swiper-wrapper" id="galleryWrapper"></div>
-             <div class="swiper-pagination"></div>
+            <div class="swiper-pagination"></div>
           </div>
         </div>
-
-        
       </div>
     </div>
 

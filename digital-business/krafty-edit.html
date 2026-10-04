@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -64,6 +64,15 @@
         <input type="text" id="editPosition" placeholder="Position" />
       </div>
 
+      <div class="input-row textarea-row">
+        <i class="fa-solid fa-user"></i>
+        <textarea
+          id="editAboutMe"
+          placeholder="Tell people a little about yourself..."
+          rows="4"
+        ></textarea>
+      </div>
+
       <div class="input-row">
         <i class="fa-solid fa-phone"></i>
         <input type="text" id="editPhone" placeholder="Phone" />
@@ -94,42 +103,37 @@
         <input type="text" id="editLinkedin" placeholder="LinkedIn" />
       </div>
 
-
       <div class="accordion">
+        <button class="accordion-header" id="galleryAccordionToggle">
+          <span>Add Product / Client Images</span>
+          <span id="galleryCounter" class="accordion-counter">0 / 5</span>
+          <i class="fa-solid fa-chevron-down accordion-arrow"></i>
+        </button>
 
-  <button class="accordion-header" id="galleryAccordionToggle">
-    <span>Add Product / Client Images</span>
-    <span id="galleryCounter" class="accordion-counter">0 / 5</span>
-    <i class="fa-solid fa-chevron-down accordion-arrow"></i>
+        <div class="accordion-body" id="galleryAccordionBody">
+          <!-- Upload card -->
+          <label class="gallery-upload-card">
+            <input
+              type="file"
+              id="editGallery"
+              accept="image/*"
+              multiple
+              hidden
+            />
 
-  </button>
+            <div class="upload-content">
+              <div class="upload-icon">＋</div>
+              <div class="upload-text">
+                <strong>Add images</strong>
+                <span>Tap or drag up to 5 images</span>
+              </div>
+            </div>
+          </label>
 
-  <div class="accordion-body" id="galleryAccordionBody">
-
-    <!-- Upload card -->
-    <label class="gallery-upload-card">
-      <input
-        type="file"
-        id="editGallery"
-        accept="image/*"
-        multiple
-        hidden
-      />
-
-      <div class="upload-content">
-        <div class="upload-icon">＋</div>
-        <div class="upload-text">
-          <strong>Add images</strong>
-          <span>Tap or drag up to 5 images</span>
+          <!-- Gallery preview -->
+          <div id="galleryPreview" class="gallery-preview"></div>
         </div>
       </div>
-    </label>
-
-    <!-- Gallery preview -->
-    <div id="galleryPreview" class="gallery-preview"></div>
-
-  </div>
-</div>
 
       <button id="editSaveBtn">Save Changes</button>
       <button id="logoutBtn" class="logout">Log Out</button>
