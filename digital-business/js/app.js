@@ -1,10 +1,11 @@
-// js/app.js
+// Krafty Studio PH — optimized digital business card application
+// Compatible with existing HTML IDs, Firestore schema, Storage paths and ?id= NFC URLs.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
 import {
   getFirestore,
   doc,
-  setDoc,
   getDoc,
+  setDoc,
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 import {
   getAuth,
@@ -21,9 +22,7 @@ import {
   deleteObject,
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-storage.js";
 
-/* ==========================
-   Firebase config & init
-   ========================== */
+// Keep these Firebase configuration values unchanged.
 const firebaseConfig = {
   apiKey: "AIzaSyBj5bCv014vXcs5QUVGM9wQoB4XPf17GSA",
   authDomain: "krafty-studio-ph.firebaseapp.com",
@@ -38,1495 +37,1048 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
-
-/* ==========================
-   Utilities & Page Detection
-   ========================== */
 const $ = (id) => document.getElementById(id);
-const path = window.location.pathname || "";
-const onPage = (filename) => path.includes(filename);
+const onPage = (name) => location.pathname.includes(name);
+const nfcId = new URLSearchParams(location.search).get("id");
+const profileURL = () => `krafty-profile.html?id=${encodeURIComponent(nfcId)}`;
+const loginURL = () => `krafty-login.html?id=${encodeURIComponent(nfcId)}`;
+const registerURL = () =>
+  `krafty-register.html?id=${encodeURIComponent(nfcId)}`;
+const editURL = () => `krafty-edit.html?id=${encodeURIComponent(nfcId)}`;
+const userRef = () => doc(db, "users", nfcId);
+const DEFAULT_PHOTO = "images/default-profile.png";
+const DEFAULT_COVER = "images/kraftylogo-white.png";
+const MAX_GALLERY = 5;
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PHOTO_PROXY =
+  "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
+const PROFILE_SOCIALS = ["facebook", "instagram", "tiktok", "linkedin"];
 
-// shared param
-const urlParams = new URLSearchParams(window.location.search);
-const nfcId = urlParams.get("id");
-
-/* ==========================
-   Safe DOM refs (may be null)
-   ========================== */
-const registrationDiv = $("registrationDiv");
-const editDiv = $("editDiv");
-const profileDivElem = $("profileDiv");
-const loginDiv = $("loginDiv");
-const galleryCarousel = $("galleryCarousel");
-
-const regSaveBtn = $("regSaveBtn");
-const editSaveBtn = $("editSaveBtn");
-const loginEditBtn = $("loginEditBtn");
-const loginBtn = $("loginBtn");
-const logoutBtn = $("logoutBtn");
-
-const regName = $("regName");
-const regEmail = $("regEmail");
-const regPassword = $("regPassword");
-const regPosition = $("regPosition");
-const regPhone = $("regPhone");
-const regWebsite = $("regWebsite");
-const regFacebook = $("regFacebook");
-const regInstagram = $("regInstagram");
-const regTikTok = $("regTikTok");
-const regLinkedin = $("regLinkedin");
-
-const editName = $("editName");
-const editPosition = $("editPosition");
-const editAboutMe = $("editAboutMe");
-const editPhone = $("editPhone");
-const editWebsite = $("editWebsite");
-const editFacebook = $("editFacebook");
-const editInstagram = $("editInstagram");
-const editTikTok = $("editTikTok");
-const editLinkedin = $("editLinkedin");
-
-// Profile display
-const profileName = $("profileName");
-const profilePosition = $("profilePosition");
-const profileAboutMe = $("profileAboutMe");
-const profilePhone = $("profilePhone");
-const profileEmail = $("profileEmail");
-const profileWebsite = $("profileWebsite");
-const facebookLink = $("facebookLink");
-const instagramLink = $("instagramLink");
-const tiktokLink = $("tiktokLink");
-const linkedinLink = $("linkedinLink");
-const profilePhoto = $("profilePhoto");
-const profileCoverImage = $("profileCoverImage"); // cover used as banner
-
-// Photo inputs & previews (profile)
-const regPhoto = $("regPhoto");
-const photoPreview = $("photoPreview");
-const editPhotoInput = $("editPhoto");
-const editPhotoPreview = $("editPhotoPreview");
-
-// Cover image (single cover used as banner)
-const regCover = $("regCover");
-const regCoverPreview = $("regCoverPreview");
-const editCoverInput = $("editCover");
-const editCoverPreview = $("editCoverPreview");
-
-// Gallery Image
-const editGallery = document.getElementById("editGallery");
-const galleryPreview = document.getElementById("galleryPreview");
-const galleryCounter = document.getElementById("galleryCounter");
+let activeProfile = null;
 let existingImages = [];
 let newImages = [];
 let deletedImages = [];
 let hasUnsavedChanges = false;
-const wrapper = document.getElementById("galleryWrapper");
-const swiperElem = document.querySelector(".gallery-swiper");
+let swiperInstance = null;
+let toastTimer = null;
+let loaderTimer = null;
+const previewURLs = new WeakMap();
 
-// Other helpers
-const togglePassword = $("togglePassword");
-const toggleLoginPassword = $("toggleLoginPassword");
-const toastElem = $("toast");
-const loaderOverlay = $("loaderOverlay");
-const saveContactBtn = $("saveContactBtn");
-const accordion = document.querySelector(".accordion");
-const accordionToggle = document.getElementById("galleryAccordionToggle");
-const accordionBody = document.getElementById("galleryAccordionBody");
-
-/* ==========================
-   Loader & Toast
-   ========================== */
 function showLoader() {
-  const loader = $("loaderOverlay");
-  if (!loader) return;
-  loader.style.display = "flex";
-  loader.classList.remove("hidden");
+  const elem = $("loaderOverlay");
+  if (!elem) return;
+  clearTimeout(loaderTimer);
+  elem.style.display = "flex";
+  elem.classList.remove("hidden");
 }
 function hideLoader() {
-  const loader = $("loaderOverlay");
-  if (!loader) return;
-  loader.classList.add("hidden");
-  setTimeout(() => {
-    loader.style.display = "none";
+  const elem = $("loaderOverlay");
+  if (!elem) return;
+  clearTimeout(loaderTimer);
+  elem.classList.add("hidden");
+  loaderTimer = setTimeout(() => {
+    elem.style.display = "none";
   }, 500);
 }
 function showToast(message, duration = 3000) {
-  const toast = $("toast");
-  if (!toast) {
-    console.warn("Toast missing:", message);
+  const elem = $("toast");
+  if (!elem) {
+    console.warn(message);
     return;
   }
-  toast.textContent = message;
-  toast.style.opacity = "1";
-  toast.style.top = "50px";
-  toast.style.pointerEvents = "auto";
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.top = "30px";
-    toast.style.pointerEvents = "none";
+  clearTimeout(toastTimer);
+  elem.textContent = message;
+  Object.assign(elem.style, {
+    opacity: "1",
+    top: "50px",
+    pointerEvents: "auto",
+  });
+  toastTimer = setTimeout(() => {
+    Object.assign(elem.style, {
+      opacity: "0",
+      top: "30px",
+      pointerEvents: "none",
+    });
   }, duration);
 }
-
-/* ==========================
-   Upload helpers (profile/cover)
-   ========================== */
-async function uploadProfilePhoto(nfcIdParam, uid, file) {
-  if (!file) return null;
-  const storageRef = ref(storage, `profile_photos/${nfcIdParam}/${uid}`);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+function go(url) {
+  location.href = url;
 }
-async function uploadCoverImage(nfcIdParam, uid, file) {
-  if (!file) return null;
-  const storageRef = ref(storage, `cover_images/${nfcIdParam}/${uid}`);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+function getValue(id) {
+  return $(id)?.value?.trim() ?? "";
 }
-
-/* ==========================
-   File validation helper
-   ========================== */
-function validateImageFile(file, maxMb = 5) {
+function setValue(id, value) {
+  const elem = $(id);
+  if (elem) elem.value = value ?? "";
+}
+function setText(id, value) {
+  const elem = $(id);
+  if (elem) elem.textContent = value ?? "";
+}
+function setImage(id, url) {
+  const elem = $(id);
+  if (elem) elem.src = url;
+}
+function display(id, value) {
+  const elem = $(id);
+  if (elem) elem.style.display = value;
+}
+function requireId() {
+  if (nfcId) return true;
+  showToast("Missing NFC ID.");
+  return false;
+}
+function validateImageFile(file, maxMB = 5) {
   if (!file) return { ok: true };
-  const allowed = ["image/jpeg", "image/png", "image/webp"];
-  const sizeMB = file.size / (1024 * 1024);
-  if (sizeMB > maxMb)
-    return { ok: false, reason: `File must be < ${maxMb} MB` };
-  if (!allowed.includes(file.type))
-    return { ok: false, reason: "Only JPG, PNG, or WEBP allowed" };
+  if (!IMAGE_TYPES.has(file.type))
+    return { ok: false, reason: "Only JPG, PNG, or WebP allowed" };
+  if (file.size > maxMB * 1024 * 1024)
+    return { ok: false, reason: `File must be below ${maxMB} MB` };
   return { ok: true };
 }
 
-/* ==========================
-   Cover dimension validator (max 624 x 240)
-   Returns a Promise that resolves to {ok: boolean, w, h}
-   ========================== */
-function validateCoverDimensionsPromise(file) {
-  return new Promise((resolve) => {
-    if (!file) return resolve({ ok: true });
-
-    const img = new Image();
-    img.onload = () => {
-      resolve({
-        ok: img.width >= img.height, // square or landscape
-        w: img.width,
-        h: img.height,
-      });
-    };
-    img.onerror = () => resolve({ ok: false });
-    img.src = URL.createObjectURL(file);
-  });
+// Blob URLs avoid FileReader's extra base64 memory allocation.
+function releasePreview(elem) {
+  const old = previewURLs.get(elem);
+  if (old) URL.revokeObjectURL(old);
+  previewURLs.delete(elem);
 }
-
-function optimizeCoverImage(file) {
-  return new Promise((resolve) => {
-    const img = new Image();
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      let targetW;
-      let targetH;
-
-      // Square
-      if (img.width === img.height) {
-        targetW = 512;
-        targetH = 512;
-      }
-      // Landscape
-      else {
-        targetW = 624;
-        targetH = Math.round((img.height / img.width) * targetW);
-      }
-
-      canvas.width = targetW;
-      canvas.height = targetH;
-
-      const isPNG = file.type === "image/png";
-
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      const outputType = isPNG ? "image/png" : "image/jpeg";
-      canvas.toBlob((blob) => resolve(blob), outputType, 0.8);
-    };
-
-    img.src = URL.createObjectURL(file);
-  });
+function showFilePreview(file, elem) {
+  if (!file || !elem) return;
+  releasePreview(elem);
+  const url = URL.createObjectURL(file);
+  previewURLs.set(elem, url);
+  elem.src = url;
 }
-
-// Compress Gallery Image
-async function compressImage(file, max = 1200, quality = 0.75) {
+function clearInputWithError(input, reason) {
+  if (input) input.value = "";
+  showToast(reason);
+}
+function decodeImage(blob) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      img.src = reader.result;
+    const image = new Image();
+    const url = URL.createObjectURL(blob);
+    image.onload = () =>
+      resolve({ image, release: () => URL.revokeObjectURL(url) });
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Cannot read this image"));
     };
-
-    img.onload = () => {
-      let { width, height } = img;
-
-      // Resize
-      const ratio = Math.min(max / width, max / height, 1);
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const isPNG = file.type === "image/png";
-
-      const outputType = isPNG ? "image/png" : "image/jpeg";
-      const outputQuality = isPNG ? undefined : quality;
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Compression failed"));
-            return;
-          }
-
-          resolve(
-            new File([blob], file.name, {
-              type: outputType,
-            }),
-          );
-        },
-        outputType,
-        outputQuality,
-      );
-    };
-
-    img.onerror = reject;
-    reader.onerror = reject;
-
-    reader.readAsDataURL(file);
+    image.src = url;
   });
 }
+async function validateCoverDimensionsPromise(file) {
+  if (!file) return { ok: true };
+  try {
+    const { image, release } = await decodeImage(file);
+    const result = {
+      ok: image.naturalWidth >= image.naturalHeight,
+      w: image.naturalWidth,
+      h: image.naturalHeight,
+    };
+    release();
+    return result;
+  } catch {
+    return { ok: false };
+  }
+}
+function canvasBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("Image conversion failed")),
+      type,
+      quality,
+    );
+  });
+}
+// Resize on the client, prevent upscaling, and use WebP when the browser supports it.
+// For vCard photos, explicitly request JPEG for better contact-app compatibility.
+async function convertImage(
+  file,
+  { maxWidth, maxHeight, quality = 0.78, type = "image/webp" },
+) {
+  const { image, release } = await decodeImage(file);
+  try {
+    const ratio = Math.min(
+      1,
+      maxWidth / image.naturalWidth,
+      maxHeight / image.naturalHeight,
+    );
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unavailable");
+    if (type === "image/jpeg") {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, width, height);
+    }
+    ctx.drawImage(image, 0, 0, width, height);
+    const blob = await canvasBlob(canvas, type, quality);
+    const actualType = blob.type || "image/png";
+    const ext =
+      actualType === "image/webp"
+        ? ".webp"
+        : actualType === "image/jpeg"
+          ? ".jpg"
+          : ".png";
+    const name = (file.name || "image").replace(/\.[^.]+$/, "") + ext;
+    return new File([blob], name, {
+      type: actualType,
+      lastModified: Date.now(),
+    });
+  } finally {
+    release();
+  }
+}
+async function prepareProfilePhoto(file) {
+  return file
+    ? convertImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.8 })
+    : null;
+}
+async function optimizeCoverImage(file) {
+  if (!file) return null;
+  const { image, release } = await decodeImage(file);
+  const square = image.naturalWidth === image.naturalHeight;
+  release();
+  return convertImage(file, {
+    maxWidth: square ? 512 : 624,
+    maxHeight: square ? 512 : 624,
+    quality: 0.8,
+  });
+}
+async function compressImage(file, max = 1200, quality = 0.75) {
+  return convertImage(file, { maxWidth: max, maxHeight: max, quality });
+}
+async function uploadImage(folder, id, uid, file) {
+  if (!file) return null;
+  // Keep the original Storage folder and object naming scheme unchanged.
+  const storageRef = ref(storage, `${folder}/${id}/${uid}`);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+const uploadProfilePhoto = (id, uid, file) =>
+  uploadImage("profile_photos", id, uid, file);
+const uploadCoverImage = (id, uid, file) =>
+  uploadImage("cover_images", id, uid, file);
 
-/* ==========================
-   loadProfile - loads name/position/photo/cover/socials
-   ========================== */
-async function loadProfile() {
-  // Hide all possible layouts first
-  if (registrationDiv) registrationDiv.style.display = "none";
-  if (editDiv) editDiv.style.display = "none";
-  if (profileDivElem) profileDivElem.style.display = "none";
-  if (galleryCarousel) galleryCarousel.style.display = "none";
-  if (loginDiv) loginDiv.style.display = "none";
-
-  // Detect which page we are on
-  const currentPage = window.location.pathname;
-
-  // Handle no NFC ID
-  if (!nfcId) {
-    console.warn("No NFC ID found in URL");
-
-    // If profile page with no ID → show toast
-    if (currentPage.includes("krafty-profile")) {
-      showToast("Missing NFC ID.");
+function bindImageInput(
+  inputId,
+  previewId,
+  { cover = false, hideOverlay = false } = {},
+) {
+  const input = $(inputId);
+  const preview = $(previewId);
+  if (!input || !preview) return;
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.ok) {
+      clearInputWithError(input, validation.reason);
       return;
     }
-
-    // If login page → show login
-    if (currentPage.includes("krafty-login") && loginDiv) {
-      loginDiv.style.display = "block";
-      hideLoader();
+    if (cover) {
+      const dimensions = await validateCoverDimensionsPromise(file);
+      // Ignore a stale validation result if the user selected a different file.
+      if (input.files?.[0] !== file) return;
+      if (!dimensions.ok) {
+        clearInputWithError(
+          input,
+          `Cover must be square or landscape (uploaded: ${dimensions.w ?? "?"}×${dimensions.h ?? "?"})`,
+        );
+        return;
+      }
     }
-
+    showFilePreview(file, preview);
+    if (hideOverlay) {
+      const overlay = document.querySelector(".upload-overlay");
+      if (overlay) overlay.style.display = "none";
+    }
+  });
+}
+function bindPasswordToggle(buttonId, inputId) {
+  const button = $(buttonId);
+  const input = $(inputId);
+  if (!button || !input) return;
+  button.addEventListener("click", () => {
+    input.type = input.type === "password" ? "text" : "password";
+    button.classList.toggle("fa-eye-slash");
+    button.classList.toggle("slash");
+    button.classList.add("blink");
+    setTimeout(() => button.classList.remove("blink"), 200);
+  });
+}
+async function checkAllowedId() {
+  return (await getDoc(doc(db, "allowedUIDs", nfcId))).exists();
+}
+async function getProfile() {
+  const snap = await getDoc(userRef());
+  return snap.exists() ? snap.data() : null;
+}
+function normalizeUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  const str = value.trim();
+  const url = /^https?:\/\//i.test(str) ? str : `https://${str}`;
+  try {
+    return ["http:", "https:"].includes(new URL(url).protocol) ? url : "";
+  } catch {
+    return "";
+  }
+}
+function toggleContact(id, value, type) {
+  const elem = $(id);
+  if (!elem) return;
+  const v = typeof value === "string" ? value.trim() : "";
+  elem.style.display = v ? "flex" : "none";
+  elem.onclick = null;
+  if (!v) {
+    delete elem.dataset.value;
     return;
   }
-
+  elem.dataset.value = v; // Real value used by .vcf; visible labels are not contact values.
+  const label = elem.querySelector(".contact-text");
+  if (label)
+    label.textContent =
+      { email: "Email", phone: "Call", website: "Website" }[type] ?? v;
+  if (type === "email")
+    elem.onclick = () => {
+      location.href = `mailto:${v}`;
+    };
+  if (type === "phone")
+    elem.onclick = () => {
+      location.href = `tel:${v}`;
+    };
+  if (type === "website")
+    elem.onclick = () => {
+      const link = normalizeUrl(v);
+      if (link) window.open(link, "_blank", "noopener,noreferrer");
+    };
+}
+function renderProfile(data) {
+  activeProfile = data;
+  display("profileDiv", "block");
+  setText("profileName", data.name || "");
+  setText("profilePosition", data.position || "");
+  setText("profileAboutMe", data.aboutMe?.trim() || "");
+  const aboutCard = document.querySelector(".about-me-card");
+  if (aboutCard)
+    aboutCard.style.display = data.aboutMe?.trim() ? "flex" : "none";
+  setImage("profilePhoto", data.photoUrl || DEFAULT_PHOTO);
+  setImage("profileCoverImage", data.coverUrl || DEFAULT_COVER);
+  toggleContact("profileEmail", data.email, "email");
+  toggleContact("profilePhone", data.socials?.phone, "phone");
+  toggleContact("profileWebsite", data.socials?.website, "website");
+  for (const key of PROFILE_SOCIALS) {
+    const elem = $(`${key}Link`);
+    if (!elem) continue;
+    const url = normalizeUrl(data.socials?.[key]);
+    elem.style.display = url ? "inline-flex" : "none";
+    if (url) elem.href = url;
+    else elem.removeAttribute("href");
+  }
+  const socialRow = document.querySelector(".social-row");
+  if (socialRow)
+    socialRow.style.display = PROFILE_SOCIALS.some((key) =>
+      normalizeUrl(data.socials?.[key]),
+    )
+      ? "flex"
+      : "none";
+  renderPublicGallery(data.productImages || []);
+}
+async function loadProfile() {
+  for (const id of [
+    "registrationDiv",
+    "editDiv",
+    "profileDiv",
+    "galleryCarousel",
+    "loginDiv",
+  ])
+    display(id, "none");
+  if (!nfcId) {
+    if (onPage("krafty-login")) display("loginDiv", "block");
+    else showToast("Missing NFC ID.");
+    hideLoader();
+    return;
+  }
   showLoader();
-
   try {
-    // ============================
-    // STEP 1 — CHECK allowedUIDs
-    // ============================
-
-    const allowedRef = doc(db, "allowedUIDs", nfcId);
-    const allowedSnap = await getDoc(allowedRef);
-
-    if (!allowedSnap.exists()) {
-      hideLoader();
+    if (!(await checkAllowedId())) {
       alert("This NFC ID is not registered in allowedUIDs.");
-      window.location.href = "krafty-login.html";
+      go("krafty-login.html");
       return;
     }
-
-    // ============================
-    // STEP 2 — CHECK users/{id}
-    // ============================
-
-    const userRef = doc(db, "users", nfcId);
-    const userSnap = await getDoc(userRef);
-
-    // ============================
-    // CASE A — USER DOES NOT EXIST → Show registration
-    // ============================
-    if (!userSnap.exists()) {
-      if (currentPage.includes("krafty-register")) {
-        if (registrationDiv) {
-          registrationDiv.style.display = "block";
-        } else {
-          console.error("registrationDiv missing in HTML!");
-        }
-      } else {
-        window.location.href = `krafty-register.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-      }
-
-      hideLoader();
-      return;
+    const data = await getProfile();
+    if (!data) {
+      if (onPage("krafty-register")) display("registrationDiv", "block");
+      else go(registerURL());
+    } else if (onPage("krafty-profile")) {
+      renderProfile(data);
+    } else if (onPage("krafty-login")) {
+      display("loginDiv", "block");
+    } else if (onPage("krafty-register")) {
+      // Existing account: preserve original registration-page behavior (no registration form).
+      showToast("This NFC ID is already registered.");
     }
-
-    // ============================
-    // CASE B — USER EXISTS → SHOW PROFILE
-    // ============================
-    const data = userSnap.data();
-
-    // Load only if we are on profile page
-    if (currentPage.includes("krafty-profile")) {
-      if (profileDivElem) profileDivElem.style.display = "block";
-
-      if (profileName) profileName.textContent = data.name || "";
-      if (profilePosition) profilePosition.textContent = data.position || "";
-      if (profileAboutMe) {
-        const aboutMeCard = document.querySelector(".about-me-card");
-
-        if (data.aboutMe?.trim()) {
-          profileAboutMe.textContent = data.aboutMe.trim();
-
-          if (aboutMeCard) {
-            aboutMeCard.style.display = "flex";
-          }
-        } else {
-          if (aboutMeCard) {
-            aboutMeCard.style.display = "none";
-          }
-        }
-      }
-
-      if (profilePhoto)
-        profilePhoto.src = data.photoUrl || "images/default-profile.png";
-
-      if (profileCoverImage)
-        profileCoverImage.src = data.coverUrl || "images/kraftylogo-white.png";
-
-      // Contact fields
-      function toggleField(elem, value, type) {
-        if (!elem) return;
-
-        const textSpan = elem.querySelector(".contact-text");
-
-        if (!value || value.trim() === "") {
-          elem.style.display = "none";
-          elem.onclick = null;
-          elem.removeAttribute("data-value");
-
-          if (textSpan) textSpan.textContent = "";
-
-          return;
-        }
-
-        const cleanValue = value.trim();
-
-        // Store the REAL value for the vCard generator
-        elem.dataset.value = cleanValue;
-
-        elem.style.display = "flex";
-
-        // Only update text if a dedicated contact-text span exists
-        if (textSpan) {
-          textSpan.textContent =
-            type === "email"
-              ? "Email"
-              : type === "phone"
-                ? "Call"
-                : type === "website"
-                  ? "Website"
-                  : cleanValue;
-        }
-
-        if (type === "email") {
-          elem.onclick = () => {
-            window.location.href = `mailto:${cleanValue}`;
-          };
-        }
-
-        if (type === "phone") {
-          elem.onclick = () => {
-            window.location.href = `tel:${cleanValue}`;
-          };
-        }
-
-        if (type === "website") {
-          elem.onclick = () => {
-            const v = /^https?:\/\//i.test(cleanValue)
-              ? cleanValue
-              : `https://${cleanValue}`;
-
-            window.open(v, "_blank");
-          };
-        }
-      }
-
-      toggleField(profileEmail, data.email, "email");
-      toggleField(profilePhone, data.socials?.phone, "phone");
-      toggleField(profileWebsite, data.socials?.website, "website");
-
-      //Helper Function for social link
-      function normalizeUrl(url) {
-        if (!url) return "";
-        return url.startsWith("http://") || url.startsWith("https://")
-          ? url
-          : "https://" + url;
-      }
-
-      // Socials
-      ["facebook", "instagram", "tiktok", "linkedin"].forEach((p) => {
-        const el = document.getElementById(p + "Link");
-        const url = data.socials?.[p];
-
-        if (!el) return;
-
-        if (!url || url.trim() === "") {
-          el.style.display = "none";
-        } else {
-          el.href = normalizeUrl(url);
-          el.style.display = "inline-flex";
-        }
-      });
-      const socialRow = document.querySelector(".social-row");
-      const profilesavebtn = document.querySelector(".profile-save-btn");
-
-      if (socialRow) {
-        const socials = ["facebook", "instagram", "tiktok", "linkedin"];
-        const hasAnySocial = socials.some((p) => data.socials?.[p]?.trim());
-
-        socialRow.style.display = hasAnySocial ? "flex" : "none";
-        profilesavebtn.style.margin = hasAnySocial ? "10px auto" : "10px auto";
-      }
-
-      loadGallery();
-    }
-  } catch (err) {
-    console.error("loadProfile error:", err);
-    showToast("Error loading profile: " + err.message);
+  } catch (error) {
+    console.error("loadProfile:", error);
+    showToast("Error loading profile: " + error.message);
+    if (onPage("krafty-login")) display("loginDiv", "block");
   } finally {
     hideLoader();
   }
 }
 
-/* ==========================
-   Register page
-   ========================== */
+// ---------------- Registration ----------------
 function initRegisterPage() {
   if (!onPage("krafty-register.html")) return;
-  if (loaderOverlay) hideLoader();
-
-  // Previews: profile photo
-  if (regPhoto && photoPreview) {
-    regPhoto.addEventListener("change", () => {
-      const file = regPhoto.files[0];
-      const valid = validateImageFile(file);
-      if (!valid.ok) {
-        showToast(valid.reason);
-        regPhoto.value = "";
+  bindImageInput("regPhoto", "photoPreview", { hideOverlay: true });
+  bindImageInput("regCover", "regCoverPreview", { cover: true });
+  bindPasswordToggle("togglePassword", "regPassword");
+  const save = $("regSaveBtn");
+  save?.addEventListener("click", async () => {
+    if (save.disabled || !requireId()) return;
+    const name = getValue("regName");
+    const email = getValue("regEmail");
+    const password = getValue("regPassword");
+    const missing = [
+      !name && "Name",
+      !email && "Email",
+      !password && "Password",
+    ].filter(Boolean);
+    if (missing.length) {
+      showToast(
+        `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} required`,
+      );
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("Enter a valid email");
+      return;
+    }
+    const photo = $("regPhoto")?.files?.[0];
+    const cover = $("regCover")?.files?.[0];
+    for (const file of [photo, cover]) {
+      const validation = validateImageFile(file);
+      if (!validation.ok) {
+        showToast(validation.reason);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        photoPreview.src = reader.result;
-        const overlay = document.querySelector(".upload-overlay");
-        if (overlay) overlay.style.display = "none";
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // Cover preview with dimension validation
-  if (regCover && regCoverPreview) {
-    regCover.addEventListener("change", async () => {
-      const file = regCover.files[0];
-      const valid = validateImageFile(file);
-      if (!valid.ok) {
-        showToast(valid.reason);
-        regCover.value = "";
-        return;
-      }
-
-      const dim = await validateCoverDimensionsPromise(file);
-      if (!dim.ok) {
-        showToast(
-          `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
-        );
-        regCover.value = "";
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => (regCoverPreview.src = reader.result);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // Toggle password
-  if (togglePassword && regPassword) {
-    togglePassword.addEventListener("click", () => {
-      // Toggle password visibility
-      const regPassword = document.getElementById("regPassword");
-      regPassword.type = regPassword.type === "password" ? "text" : "password";
-
-      // Toggle eye icon
-      togglePassword.classList.toggle("fa-eye-slash");
-
-      // Trigger blink animation
-      togglePassword.classList.add("blink");
-      setTimeout(() => togglePassword.classList.remove("blink"), 200);
-
-      // Optional: Toggle slash animation
-      togglePassword.classList.toggle("slash");
-    });
-  }
-
-  if (regSaveBtn) {
-    regSaveBtn.addEventListener("click", async () => {
-      showLoader();
-      const name = regName?.value?.trim() || "";
-      const email = regEmail?.value?.trim() || "";
-      const password = regPassword?.value?.trim() || "";
-      const file = regPhoto?.files?.[0];
-      const coverFile = regCover?.files?.[0];
-
-      const missing = [];
-      if (!name) missing.push("Name");
-      if (!email) missing.push("Email");
-      if (!password) missing.push("Password");
-      if (missing.length) {
-        hideLoader();
-        showToast(
-          `${missing.join(", ")} ${
-            missing.length === 1 ? "is" : "are"
-          } required`,
-        );
-        return;
-      }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        hideLoader();
-        showToast("Enter a valid email");
-        return;
-      }
-
-      // validate files (small) and cover dimensions
-      for (const f of [file, coverFile]) {
-        const v = validateImageFile(f);
-        if (!v.ok) {
-          hideLoader();
-          showToast(v.reason);
-          return;
-        }
-      }
-
-      if (coverFile) {
-        const dim = await validateCoverDimensionsPromise(coverFile);
-        if (!dim.ok) {
-          hideLoader();
-          showToast(
-            `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
+    }
+    if (cover && !(await validateCoverDimensionsPromise(cover)).ok) {
+      showToast("Cover must be square or landscape");
+      return;
+    }
+    save.disabled = true;
+    showLoader();
+    let createdUser = null;
+    try {
+      // Avoid creating Firebase Auth accounts for invalid or already-used card IDs.
+      if (!(await checkAllowedId()))
+        throw new Error("This NFC ID is not registered.");
+      if (await getProfile())
+        throw new Error("This NFC ID already has a profile.");
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      createdUser = credential.user;
+      let photoUrl = DEFAULT_PHOTO;
+      let coverUrl = DEFAULT_COVER;
+      if (photo) {
+        try {
+          photoUrl = await uploadProfilePhoto(
+            nfcId,
+            createdUser.uid,
+            await prepareProfilePhoto(photo),
           );
-          return;
+        } catch (error) {
+          console.error("Profile photo upload failed:", error);
+          showToast("Profile photo upload failed; registering without it.");
         }
       }
-
-      let uid = null;
-      try {
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
-        uid = userCredential.user.uid;
-
-        // upload profile photo (if any) — must be signed in now
-        let photoURL = null;
-        if (file) {
-          // client-side ensure current user exists
-          const currentUser = auth.currentUser;
-          if (!currentUser) {
-            hideLoader();
-            showToast("Please login before uploading images.");
-            return;
-          }
-          try {
-            photoURL = await uploadProfilePhoto(nfcId, currentUser.uid, file);
-          } catch (err) {
-            console.error("Profile photo upload failed:", err);
-            if (err?.code === "storage/unauthorized") {
-              showToast("Profile photo upload denied by server rules.");
-            } else {
-              showToast(
-                "Profile photo upload failed: " + (err.message || err.code),
-              );
-            }
-            // continue: allow registration even if image upload failed
-          }
-        }
-
-        // upload cover (if any)
-        let coverURL = null;
-        if (coverFile) {
-          const currentUser = auth.currentUser;
-
-          if (!currentUser) {
-            hideLoader();
-            showToast("Please login before uploading cover.");
-            return;
-          }
-          const optimizedCover = await optimizeCoverImage(coverFile);
-          try {
-            coverURL = await uploadCoverImage(
-              nfcId,
-              currentUser.uid,
-              optimizedCover,
-            );
-          } catch (err) {
-            console.error("Cover upload failed:", err);
-            if (err?.code === "storage/unauthorized") {
-              showToast("Cover upload denied by server rules.");
-            } else {
-              showToast("Cover upload failed: " + (err.message || err.code));
-            }
-            // continue without coverURL
-          }
-        }
-
-        const data = {
-          name,
-          position: regPosition?.value?.trim() || "",
-          email,
-          photoUrl: photoURL || "images/default-profile.png",
-          coverUrl: coverURL || "images/kraftylogo-white.png",
-          socials: {
-            phone: regPhone?.value?.trim() || "",
-            website: regWebsite?.value?.trim() || "",
-            facebook: regFacebook?.value?.trim() || "",
-            instagram: regInstagram?.value?.trim() || "",
-            tiktok: regTikTok?.value?.trim() || "",
-            linkedin: regLinkedin?.value?.trim() || "",
-          },
-          authUid: uid,
-        };
-
-        await setDoc(doc(db, "users", nfcId), data);
-
-        hideLoader();
-        showToast("Profile registered!", 3000);
-        window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-      } catch (err) {
-        hideLoader();
-        showToast("Error: " + err.message, 5000);
-        if (uid) {
-          try {
-            const cur = auth.currentUser;
-            if (cur && cur.uid === uid) await cur.delete();
-          } catch (delErr) {
-            console.error("Rollback delete failed", delErr);
-          }
+      if (cover) {
+        try {
+          coverUrl = await uploadCoverImage(
+            nfcId,
+            createdUser.uid,
+            await optimizeCoverImage(cover),
+          );
+        } catch (error) {
+          console.error("Cover upload failed:", error);
+          showToast("Cover upload failed; registering without it.");
         }
       }
-    });
-  }
-
+      await setDoc(userRef(), {
+        name,
+        position: getValue("regPosition"),
+        email,
+        photoUrl,
+        coverUrl,
+        socials: {
+          phone: getValue("regPhone"),
+          website: getValue("regWebsite"),
+          facebook: getValue("regFacebook"),
+          instagram: getValue("regInstagram"),
+          tiktok: getValue("regTikTok"),
+          linkedin: getValue("regLinkedin"),
+        },
+        authUid: createdUser.uid,
+      });
+      showToast("Profile registered!");
+      go(profileURL());
+    } catch (error) {
+      console.error("Registration error:", error);
+      showToast("Error: " + error.message, 5000);
+      if (createdUser) {
+        try {
+          if (auth.currentUser?.uid === createdUser.uid)
+            await createdUser.delete();
+        } catch (rollbackError) {
+          console.warn("Registration rollback failed:", rollbackError);
+        }
+      }
+    } finally {
+      save.disabled = false;
+      hideLoader();
+    }
+  });
   loadProfile();
 }
 
-/* ==========================
-   Login Page
-   ========================== */
+// ---------------- Login ----------------
 function initLoginPage() {
   if (!onPage("krafty-login.html")) return;
-
-  if (loaderOverlay) hideLoader();
-
-  if (toggleLoginPassword) {
-    toggleLoginPassword.addEventListener("click", () => {
-      // Toggle password visibility
-      const loginPassword = document.getElementById("loginPassword");
-      loginPassword.type =
-        loginPassword.type === "password" ? "text" : "password";
-
-      // Toggle eye icon
-      toggleLoginPassword.classList.toggle("fa-eye-slash");
-
-      // Trigger blink animation
-      toggleLoginPassword.classList.add("blink");
-      setTimeout(() => toggleLoginPassword.classList.remove("blink"), 200);
-
-      // Optional: Toggle slash animation
-      toggleLoginPassword.classList.toggle("slash");
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      if (nfcId)
-        window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-      else window.location.href = "krafty-profile.html";
-    });
-  }
-
-  if (loginBtn) {
-    loginBtn.addEventListener("click", async () => {
-      const email = $("loginEmail")?.value || "";
-      const password = $("loginPassword")?.value || "";
-      if (!email || !password) {
-        showToast("Email and password required");
-        return;
-      }
-      showLoader();
-      try {
-        const credential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
-        const user = credential.user;
-        if (!nfcId) {
-          hideLoader();
-          showToast("Missing NFC ID");
-          return;
-        }
-        const snap = await getDoc(doc(db, "users", nfcId));
-        if (!snap.exists()) {
-          hideLoader();
-          alert("No profile for this NFC ID");
-          return;
-        }
-        const data = snap.data();
-        if (data.authUid !== user.uid) {
-          hideLoader();
-          alert("Not authorized");
-          return;
-        }
-        hideLoader();
-        window.location.href = `krafty-edit.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-      } catch (err) {
-        hideLoader();
-        showToast("Login failed: " + err.message, 4000);
-      }
-    });
-  }
-
-  loadProfile();
-
-  // ensure login UI displays reliably
-  window.addEventListener("load", () => {
-    if (loginDiv) loginDiv.style.display = "block";
-    if (loaderOverlay) hideLoader();
-  });
-}
-
-/* ==========================
-   Edit Page (protected)
-   ========================== */
-function initEditPage() {
-  if (!onPage("krafty-edit.html")) return;
-
-  if (editDiv) editDiv.style.display = "none";
-  if (loaderOverlay) showLoader();
-
-  if (!nfcId) {
-    window.location.href = "krafty-login.html";
-    return;
-  }
-
-  // wait for auth and verify
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId,
-      )}`;
-
+  bindPasswordToggle("toggleLoginPassword", "loginPassword");
+  $("logoutBtn")?.addEventListener("click", () =>
+    go(nfcId ? profileURL() : "krafty-profile.html"),
+  );
+  const login = $("loginBtn");
+  login?.addEventListener("click", async () => {
+    if (login.disabled) return;
+    const email = getValue("loginEmail");
+    const password = $("loginPassword")?.value || "";
+    if (!email || !password) {
+      showToast("Email and password required");
       return;
     }
-
+    if (!requireId()) return;
+    login.disabled = true;
+    showLoader();
     try {
-      const userSnap = await getDoc(doc(db, "users", nfcId));
-      if (!userSnap.exists()) {
-        window.location.href = `krafty-login.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-
-        return;
-      }
-      const data = userSnap.data();
-      if (data.authUid !== user.uid) {
-        window.location.href = `krafty-login.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-
-        return;
-      }
-
-      // authorized — show UI
-      if (editDiv) editDiv.style.display = "block";
-      if (loaderOverlay) hideLoader();
-
-      // populate & listeners
-      populateEditForm(data);
-      setupEditListeners();
-      loadExisting(nfcId, db);
-    } catch (err) {
-      console.error("Edit auth check failed", err);
-      window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId,
-      )}`;
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      const profile = await getProfile();
+      if (!profile) throw new Error("No profile for this NFC ID");
+      if (profile.authUid !== user.uid)
+        throw new Error("Not authorized for this NFC ID");
+      go(editURL());
+    } catch (error) {
+      console.error("Login failed:", error);
+      showToast("Login failed: " + error.message, 4000);
+    } finally {
+      login.disabled = false;
+      hideLoader();
     }
   });
-
-  function populateEditForm(data) {
-    if (editName) editName.value = data.name || "";
-    if (editPosition) editPosition.value = data.position || "";
-    if (editAboutMe) editAboutMe.value = data.aboutMe || "";
-    if (editPhone) editPhone.value = data.socials?.phone || "";
-    if (editWebsite) editWebsite.value = data.socials?.website || "";
-    if (editFacebook) editFacebook.value = data.socials?.facebook || "";
-    if (editInstagram) editInstagram.value = data.socials?.instagram || "";
-    if (editTikTok) editTikTok.value = data.socials?.tiktok || "";
-    if (editLinkedin) editLinkedin.value = data.socials?.linkedin || "";
-    if (editPhotoPreview)
-      editPhotoPreview.src = data.photoUrl || "images/default-profile.png";
-    if (editCoverPreview)
-      editCoverPreview.src = data.coverUrl || "images/KraftyMain.png";
-  }
-
-  function setupEditListeners() {
-    // cover preview with dimension validation
-    if (editCoverInput && editCoverPreview) {
-      editCoverInput.addEventListener("change", async () => {
-        const file = editCoverInput.files[0];
-        const valid = validateImageFile(file);
-        if (!valid.ok) {
-          showToast(valid.reason);
-          editCoverInput.value = "";
-          return;
-        }
-
-        const dim = await validateCoverDimensionsPromise(file);
-        if (!dim.ok) {
-          showToast(
-            `Cover must be Sqaure or Rectangle (uploaded: ${dim.w}×${dim.h})`,
-          );
-          editCoverInput.value = "";
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => (editCoverPreview.src = reader.result);
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // profile photo preview
-    if (editPhotoInput && editPhotoPreview) {
-      editPhotoInput.addEventListener("change", () => {
-        const file = editPhotoInput.files[0];
-        const valid = validateImageFile(file);
-        if (!valid.ok) {
-          showToast(valid.reason);
-          editPhotoInput.value = "";
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => (editPhotoPreview.src = reader.result);
-        reader.readAsDataURL(file);
-      });
-    }
-    // Accordion in the edit page
-    accordionToggle.addEventListener("click", () => {
-      const isOpen = accordion.classList.contains("open");
-
-      if (isOpen) {
-        const startHeight = accordionBody.scrollHeight;
-
-        accordionBody.style.height = startHeight + "px";
-        accordionBody.offsetHeight;
-
-        accordionBody.style.height = "0px";
-        accordion.classList.remove("open");
-        accordionToggle.setAttribute("aria-expanded", "false");
-      } else {
-        const targetHeight = accordionBody.scrollHeight;
-
-        accordionBody.style.height = "0px";
-        accordion.classList.add("open");
-        accordionToggle.setAttribute("aria-expanded", "true");
-
-        accordionBody.offsetHeight;
-
-        accordionBody.style.height = targetHeight + "px";
-
-        accordionBody.addEventListener(
-          "transitionend",
-          () => {
-            accordionBody.style.height = "auto";
-          },
-          { once: true },
-        );
-      }
-    });
-
-    /* ================= SELECT ================= */
-    editGallery.addEventListener("change", async () => {
-      const available = 5 - (existingImages.length + newImages.length);
-      const files = Array.from(editGallery.files).slice(0, available);
-
-      for (const file of files) {
-        newImages.push({ file: await compressImage(file), caption: "" });
-      }
-
-      editGallery.value = "";
-      hasUnsavedChanges = true;
-      renderGallery();
-    });
-
-    // Save changes
-    if (editSaveBtn) {
-      // remove and reattach to avoid duplicate listeners
-      editSaveBtn.replaceWith(editSaveBtn.cloneNode(true));
-      const newSave = $("editSaveBtn");
-
-      newSave.addEventListener("click", async () => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          window.location.href = `krafty-login.html?id=${encodeURIComponent(
-            nfcId,
-          )}`;
-          return;
-        }
-
-        showLoader();
-
-        try {
-          const userRef = doc(db, "users", nfcId);
-          const userSnap = await getDoc(userRef);
-
-          if (!userSnap.exists()) {
-            hideLoader();
-            showToast("Profile not found");
-            return;
-          }
-
-          const data = userSnap.data();
-          if (data.authUid !== currentUser.uid) {
-            hideLoader();
-            alert("Not authorized");
-            return;
-          }
-
-          /* =====================
-         PROFILE / COVER
-      ===================== */
-          const photoFile = editPhotoInput?.files?.[0];
-          const coverFile = editCoverInput?.files?.[0];
-
-          for (const f of [photoFile, coverFile]) {
-            if (!f) continue;
-            const v = validateImageFile(f);
-            if (!v.ok) {
-              hideLoader();
-              showToast(v.reason);
-              return;
-            }
-          }
-
-          if (coverFile) {
-            const dim = await validateCoverDimensionsPromise(coverFile);
-            if (!dim.ok) {
-              hideLoader();
-              showToast(
-                `Cover must be Square or Rectangle (uploaded: ${dim.w}×${dim.h})`,
-              );
-              return;
-            }
-          }
-
-          let photoURL = data.photoUrl || "images/default-profile.png";
-          if (photoFile) {
-            photoURL = await uploadProfilePhoto(
-              nfcId,
-              currentUser.uid,
-              photoFile,
-            );
-          }
-
-          let coverURL = data.coverUrl || "images/KraftyMain.png";
-          if (coverFile) {
-            const optimizedCover = await optimizeCoverImage(coverFile);
-            coverURL = await uploadCoverImage(
-              nfcId,
-              currentUser.uid,
-              optimizedCover,
-            );
-          }
-
-          /* =====================
-         GALLERY SAVE
-      ===================== */
-
-          // Upload new gallery images
-          for (const img of newImages) {
-            const fileName = `${currentUser.uid}_${Date.now()}`;
-            const path = `gallery/${nfcId}/${currentUser.uid}/${fileName}`;
-
-            const imgRef = ref(storage, path);
-
-            await uploadBytes(imgRef, img.file);
-            const url = await getDownloadURL(imgRef);
-
-            existingImages.push({
-              path, // ✅ REQUIRED
-              url,
-              caption: img.caption || "",
-            });
-          }
-
-          // Delete removed gallery images
-          for (const img of deletedImages) {
-            try {
-              console.log("DELETE QUEUE:", deletedImages);
-              await deleteObject(ref(storage, img.path));
-            } catch (err) {
-              console.warn("Gallery delete skipped:", err?.code);
-            }
-          }
-
-          /* =====================
-         FINAL FIRESTORE UPDATE
-      ===================== */
-          const updated = {
-            name: editName?.value?.trim() || data.name || "",
-            position: editPosition?.value?.trim() || data.position || "",
-            aboutMe: editAboutMe?.value?.trim() || data.aboutMe || "",
-            email: data.email || currentUser.email || "",
-            photoUrl: photoURL,
-            coverUrl: coverURL,
-            socials: {
-              phone: editPhone
-                ? editPhone.value.trim()
-                : (data.socials?.phone ?? ""),
-              website: editWebsite
-                ? editWebsite.value.trim()
-                : (data.socials?.website ?? ""),
-              facebook: editFacebook
-                ? editFacebook.value.trim()
-                : (data.socials?.facebook ?? ""),
-              instagram: editInstagram
-                ? editInstagram.value.trim()
-                : (data.socials?.instagram ?? ""),
-              tiktok: editTikTok
-                ? editTikTok.value.trim()
-                : (data.socials?.tiktok ?? ""),
-              linkedin: editLinkedin
-                ? editLinkedin.value.trim()
-                : (data.socials?.linkedin ?? ""),
-            },
-            productImages: existingImages,
-            authUid: currentUser.uid,
-          };
-
-          await setDoc(userRef, updated);
-
-          /* =====================
-         UI CLEANUP
-      ===================== */
-          hasUnsavedChanges = false;
-
-          if (profilePhoto) profilePhoto.src = photoURL;
-          if (profileCoverImage) profileCoverImage.src = coverURL;
-
-          hideLoader();
-          showToast("Profile updated!", 3000);
-
-          window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-            nfcId,
-          )}`;
-        } catch (err) {
-          console.error("edit save error", err);
-          hideLoader();
-          showToast("Update error: " + (err.message || err.code), 5000);
-        }
-      });
-    }
-
-    // Logout on edit page
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        try {
-          await signOut(auth);
-          window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-            nfcId,
-          )}`;
-        } catch (err) {
-          console.error("logout failed", err);
-        }
-      });
-    }
-  }
-}
-
-/* ==========================
-   Profile Page
-   ========================== */
-function initProfilePage() {
-  if (!onPage("krafty-profile.html")) return;
-
-  if (loginEditBtn) {
-    loginEditBtn.addEventListener("click", () => {
-      window.location.href = `krafty-login.html?id=${encodeURIComponent(
-        nfcId,
-      )}`;
-    });
-  }
-
-  // Updated vCard + embedded-photo handler (replace your existing handler with this)
-  if (saveContactBtn) {
-    saveContactBtn.addEventListener("click", async () => {
-      if (!profileDivElem || profileDivElem.style.display === "none") {
-        alert("Profile not loaded yet.");
-        return;
-      }
-
-      // ====== GET TEXT FIELDS (trimmed) ======
-      const name = (profileName?.textContent || "").trim();
-      const position = (profilePosition?.textContent || "").trim();
-      const email = (profileEmail?.dataset.value || "").trim();
-      const phone = (profilePhone?.dataset.value || "").trim();
-      let website = (profileWebsite?.dataset.value || "").trim();
-      const facebook = facebookLink?.href || "";
-      const instagram = instagramLink?.href || "";
-      const tiktok = tiktokLink?.href || "";
-      const linkedin = linkedinLink?.href || "";
-
-      // normalize website to include protocol (https preferred)
-      if (website && !/^https?:\/\//i.test(website)) {
-        website = "https://" + website;
-      }
-
-      // ====== GET PHOTO URL FROM IMG TAG ======
-      const imgElem = document.getElementById("profilePhoto");
-      const photoUrl = imgElem?.src || "";
-
-      // ====== PROXY (your Cloud Function) ======
-      const funcBase =
-        "https://us-central1-krafty-studio-ph.cloudfunctions.net/proxyImage";
-
-      // ====== HELPERS ======
-      const CRLF = "\r\n";
-
-      function buildN(fullName) {
-        if (!fullName) return ";;;";
-        const parts = fullName.trim().split(/\s+/);
-        const first = parts.shift() || "";
-        const last = parts.join(" ") || "";
-        return `${last};${first};;;`;
-      }
-
-      // Convert Blob -> base64 (data URL -> base64)
-      function blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => {
-            const s = r.result || "";
-            const idx = s.indexOf(",") + 1;
-            resolve(s.slice(idx));
-          };
-          r.onerror = reject;
-          r.readAsDataURL(blob);
-        });
-      }
-
-      // Fold base64 into 75-char chunks for vCard with RFC-style continuation lines.
-      function foldBase64ForVCard(base64) {
-        const CHUNK = 75;
-        const parts = [];
-        for (let i = 0; i < base64.length; i += CHUNK) {
-          parts.push(base64.slice(i, i + CHUNK));
-        }
-        // first piece no prefix, subsequent pieces prefixed with CRLF + single space
-        return parts.map((p, i) => (i === 0 ? p : CRLF + " " + p)).join("");
-      }
-
-      // ====== TRY TO FETCH & EMBED PHOTO  ======
-      let base64Photo = "";
-      let photoMime = "JPEG";
-
-      if (photoUrl) {
-        try {
-          const proxiedUrl = `${funcBase}?url=${encodeURIComponent(photoUrl)}`;
-          const res = await fetch(proxiedUrl);
-          if (!res.ok) throw new Error("proxy fetch failed: " + res.status);
-
-          const blob = await res.blob();
-
-          // detect MIME
-          photoMime = blob.type?.toLowerCase().includes("png") ? "PNG" : "JPEG";
-
-          // convert original blob → base64 (no resizing)
-          base64Photo = await blobToBase64(blob);
-        } catch (err) {
-          console.error("Could not fetch/embed photo through proxy:", err);
-          base64Photo = ""; // fallback to URI if embed fails
-        }
-      }
-
-      // ====== BUILD VCARD LINES (CRLF) ======
-      const lines = [];
-      lines.push("BEGIN:VCARD");
-      lines.push("VERSION:3.0");
-
-      // N and FN (N is important for Apple)
-      lines.push(`N:${buildN(name)}`);
-      lines.push(`FN:${name || ""}`);
-
-      if (position) lines.push(`TITLE:${position}`);
-      if (email) lines.push(`EMAIL;TYPE=WORK:${email}`);
-      if (phone) lines.push(`TEL;TYPE=CELL:${phone}`);
-      if (website) lines.push(`URL:${website}`);
-      if (facebook) lines.push(`X-SOCIALPROFILE;TYPE=Facebook:${facebook}`);
-      if (instagram) lines.push(`X-SOCIALPROFILE;TYPE=Instagram:${instagram}`);
-      if (tiktok) lines.push(`X-SOCIALPROFILE;TYPE=TikTok:${tiktok}`);
-      if (linkedin) lines.push(`X-SOCIALPROFILE;TYPE=LinkedIn:${linkedin}`);
-
-      // PHOTO: header on its own line, then folded base64 lines (RFC)
-      if (base64Photo) {
-        const folded = foldBase64ForVCard(base64Photo);
-        lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoMime}:${folded}`); // header
-      } else if (photoUrl) {
-        // fallback: include original image URI (works for some clients)
-        lines.push(`PHOTO;VALUE=URI:${photoUrl}`);
-      }
-
-      lines.push("END:VCARD");
-
-      // Join. folded base64 entry already includes CRLFs; joining with CRLF preserves correct structure.
-      const vCard = lines.join(CRLF);
-
-      // ====== DOWNLOAD .VCF ======
-      try {
-        const blobOut = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
-        const u = URL.createObjectURL(blobOut);
-        const a = document.createElement("a");
-        a.href = u;
-        a.download = `${(name || "contact").replace(/\s+/g, "_")}.vcf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(u);
-      } catch (err) {
-        console.error("Failed to create/download vCard:", err);
-        alert("Error creating vCard. See console for details.");
-      }
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-      try {
-        await signOut(auth);
-        window.location.href = `krafty-profile.html?id=${encodeURIComponent(
-          nfcId,
-        )}`;
-      } catch (err) {
-        console.error("logout failed", err);
-      }
-    });
-  }
-
   loadProfile();
 }
 
-/* ==========================
-   Generic toggles & previews
-   ========================== */
-
-if (regPhoto && photoPreview) {
-  regPhoto.addEventListener("change", () => {
-    const file = regPhoto.files[0];
-    const v = validateImageFile(file);
-    if (!v.ok) {
-      showToast(v.reason);
-      regPhoto.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      photoPreview.src = reader.result;
-      const overlay = document.querySelector(".upload-overlay");
-      if (overlay) overlay.style.display = "none";
-    };
-    reader.readAsDataURL(file);
-  });
+// ---------------- Edit profile and product gallery ----------------
+function fillEditForm(data) {
+  for (const [field, value] of Object.entries({
+    editName: data.name,
+    editPosition: data.position,
+    editAboutMe: data.aboutMe,
+    editPhone: data.socials?.phone,
+    editWebsite: data.socials?.website,
+    editFacebook: data.socials?.facebook,
+    editInstagram: data.socials?.instagram,
+    editTikTok: data.socials?.tiktok,
+    editLinkedin: data.socials?.linkedin,
+  }))
+    setValue(field, value);
+  setImage("editPhotoPreview", data.photoUrl || DEFAULT_PHOTO);
+  setImage("editCoverPreview", data.coverUrl || "images/KraftyMain.png");
 }
-
-/* ================= LOAD Gallery ================= */
-async function loadExisting(nfcId, db) {
-  existingImages = await loadProductImages(nfcId, db);
+function resetGalleryState(images) {
+  for (const item of newImages)
+    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  existingImages = images.map((image) => ({ ...image }));
+  newImages = [];
+  deletedImages = [];
+  hasUnsavedChanges = false;
   renderGallery();
 }
-
-async function loadProductImages(nfcId, db) {
-  try {
-    const snap = await getDoc(doc(db, "users", nfcId));
-    return snap.exists() ? snap.data().productImages || [] : [];
-  } catch (err) {
-    console.error("loadProductImages failed:", err);
-    return [];
-  }
-}
-
 function renderGallery() {
-  if (!galleryPreview || !galleryCounter) return;
-
+  const preview = $("galleryPreview");
+  const counter = $("galleryCounter");
+  if (!preview || !counter) return;
   const total = existingImages.length + newImages.length;
-
-  // Hide preview if empty
-  galleryPreview.style.display = total === 0 ? "none" : "grid";
-  galleryPreview.innerHTML = "";
-
-  // Render existing images
-  existingImages.forEach((item, index) => {
-    const wrap = document.createElement("div");
-    wrap.className = "gallery-item";
-
-    const img = document.createElement("img");
-    img.src = item.url;
-
+  preview.style.display = total ? "grid" : "none";
+  preview.replaceChildren();
+  const createTile = (item, index, isNew) => {
+    const tile = document.createElement("div");
+    tile.className = "gallery-item";
+    const image = document.createElement("img");
+    image.src = isNew ? item.previewUrl : item.url;
+    image.alt = item.caption || "Gallery image";
+    image.loading = "lazy";
+    image.decoding = "async";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "gallery-delete";
+    del.textContent = "×";
+    del.setAttribute("aria-label", "Remove image");
+    del.addEventListener("click", () => {
+      hasUnsavedChanges = true;
+      if (isNew) {
+        const [removed] = newImages.splice(index, 1);
+        if (removed.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      } else {
+        const [removed] = existingImages.splice(index, 1);
+        deletedImages.push(removed);
+      }
+      renderGallery();
+    });
     const caption = document.createElement("input");
     caption.placeholder = "Caption";
     caption.value = item.caption || "";
-    caption.oninput = () => {
-      existingImages[index].caption = caption.value;
+    caption.addEventListener("input", () => {
+      item.caption = caption.value;
       hasUnsavedChanges = true;
-    };
-
-    const del = document.createElement("button");
-    del.className = "gallery-delete";
-    del.textContent = "×";
-    del.onclick = () => {
-      hasUnsavedChanges = true;
-      deletedImages.push(item);
-      existingImages.splice(index, 1);
-      renderGallery();
-    };
-
-    wrap.append(img, del, caption);
-    galleryPreview.appendChild(wrap);
+    });
+    tile.append(image, del, caption);
+    return tile;
+  };
+  const fragment = document.createDocumentFragment();
+  existingImages.forEach((item, index) =>
+    fragment.appendChild(createTile(item, index, false)),
+  );
+  newImages.forEach((item, index) =>
+    fragment.appendChild(createTile(item, index, true)),
+  );
+  preview.appendChild(fragment);
+  counter.textContent = `${total} / ${MAX_GALLERY} images used`;
+}
+function bindGalleryInput() {
+  const input = $("editGallery");
+  if (!input) return;
+  input.addEventListener("change", async () => {
+    const available = MAX_GALLERY - existingImages.length - newImages.length;
+    const files = Array.from(input.files || []);
+    input.value = "";
+    if (!available) {
+      showToast("Maximum of 5 gallery images.");
+      return;
+    }
+    if (files.length > available)
+      showToast(`Only ${available} additional image(s) can be added.`);
+    for (const file of files.slice(0, available)) {
+      const validation = validateImageFile(file);
+      if (!validation.ok) {
+        showToast(validation.reason);
+        continue;
+      }
+      try {
+        const converted = await compressImage(file);
+        newImages.push({
+          file: converted,
+          caption: "",
+          previewUrl: URL.createObjectURL(converted),
+        });
+        hasUnsavedChanges = true;
+      } catch (error) {
+        console.error("Gallery image conversion:", error);
+        showToast("Could not process " + file.name);
+      }
+    }
+    renderGallery();
   });
-
-  newImages.forEach((item, index) => {
-    const wrap = document.createElement("div");
-    wrap.className = "gallery-item";
-
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(item.file);
-
-    const caption = document.createElement("input");
-    caption.placeholder = "Caption";
-    caption.value = item.caption || "";
-    caption.oninput = () => {
-      newImages[index].caption = caption.value;
-      hasUnsavedChanges = true;
-    };
-
-    const del = document.createElement("button");
-    del.className = "gallery-delete";
-    del.textContent = "×";
-    del.onclick = () => {
-      hasUnsavedChanges = true;
-      newImages.splice(index, 1);
-      renderGallery();
-    };
-
-    wrap.append(img, del, caption);
-    galleryPreview.appendChild(wrap);
+}
+function bindAccordion() {
+  const button = $("galleryAccordionToggle");
+  const body = $("galleryAccordionBody");
+  const accordion = document.querySelector(".accordion");
+  if (!button || !body || !accordion) return;
+  button.addEventListener("click", () => {
+    const open = accordion.classList.contains("open");
+    body.style.height = `${body.scrollHeight}px`;
+    void body.offsetHeight; // force layout for height transition
+    if (open) {
+      body.style.height = "0px";
+      accordion.classList.remove("open");
+      button.setAttribute("aria-expanded", "false");
+    } else {
+      body.style.height = "0px";
+      accordion.classList.add("open");
+      button.setAttribute("aria-expanded", "true");
+      void body.offsetHeight;
+      body.style.height = `${body.scrollHeight}px`;
+      body.addEventListener(
+        "transitionend",
+        () => {
+          if (accordion.classList.contains("open")) body.style.height = "auto";
+        },
+        { once: true },
+      );
+    }
   });
-
-  galleryCounter.textContent = `${total} / 5 images used`;
+}
+function uniqueImageName(uid) {
+  const suffix =
+    globalThis.crypto?.randomUUID?.() ||
+    `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  return `${uid}_${suffix}`;
+}
+function bindEditSave() {
+  const save = $("editSaveBtn");
+  if (!save) return;
+  save.addEventListener("click", async () => {
+    if (save.disabled) return;
+    const user = auth.currentUser;
+    if (!user) {
+      go(loginURL());
+      return;
+    }
+    save.disabled = true;
+    showLoader();
+    const uploadedPaths = [];
+    let firestoreCommitted = false;
+    try {
+      const original = await getProfile();
+      if (!original) throw new Error("Profile not found");
+      if (original.authUid !== user.uid) throw new Error("Not authorized");
+      const photoFile = $("editPhoto")?.files?.[0];
+      const coverFile = $("editCover")?.files?.[0];
+      for (const file of [photoFile, coverFile]) {
+        const validation = validateImageFile(file);
+        if (!validation.ok) throw new Error(validation.reason);
+      }
+      if (coverFile && !(await validateCoverDimensionsPromise(coverFile)).ok) {
+        throw new Error("Cover must be square or landscape");
+      }
+      let photoUrl = original.photoUrl || DEFAULT_PHOTO;
+      let coverUrl = original.coverUrl || "images/KraftyMain.png";
+      if (photoFile)
+        photoUrl = await uploadProfilePhoto(
+          nfcId,
+          user.uid,
+          await prepareProfilePhoto(photoFile),
+        );
+      if (coverFile)
+        coverUrl = await uploadCoverImage(
+          nfcId,
+          user.uid,
+          await optimizeCoverImage(coverFile),
+        );
+      // Upload first, then update Firestore. Delete old objects only after Firestore succeeds.
+      const uploaded = [];
+      for (const item of newImages) {
+        const path = `gallery/${nfcId}/${user.uid}/${uniqueImageName(user.uid)}`;
+        const imageRef = ref(storage, path);
+        await uploadBytes(imageRef, item.file, { contentType: item.file.type });
+        uploadedPaths.push(path);
+        const url = await getDownloadURL(imageRef);
+        uploaded.push({ path, url, caption: item.caption || "" });
+      }
+      const productImages = [...existingImages, ...uploaded];
+      const updated = {
+        name: getValue("editName"),
+        position: getValue("editPosition"),
+        aboutMe: getValue("editAboutMe"),
+        email: original.email || user.email || "",
+        photoUrl,
+        coverUrl,
+        socials: {
+          phone: getValue("editPhone"),
+          website: getValue("editWebsite"),
+          facebook: getValue("editFacebook"),
+          instagram: getValue("editInstagram"),
+          tiktok: getValue("editTikTok"),
+          linkedin: getValue("editLinkedin"),
+        },
+        productImages,
+        authUid: user.uid,
+      };
+      await setDoc(userRef(), updated); // Existing Firestore schema is unchanged.
+      firestoreCommitted = true;
+      for (const oldImage of deletedImages) {
+        if (!oldImage.path) continue;
+        try {
+          await deleteObject(ref(storage, oldImage.path));
+        } catch (error) {
+          console.warn("Gallery cleanup failed:", error);
+        }
+      }
+      hasUnsavedChanges = false;
+      showToast("Profile updated!");
+      go(profileURL());
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      // Remove newly-uploaded gallery objects only if Firestore was not updated.
+      if (!firestoreCommitted && uploadedPaths.length) {
+        await Promise.allSettled(
+          uploadedPaths.map((path) => deleteObject(ref(storage, path))),
+        );
+      }
+      showToast("Update error: " + (error.message || error.code), 5000);
+    } finally {
+      save.disabled = false;
+      hideLoader();
+    }
+  });
+}
+function bindEditControls() {
+  bindImageInput("editPhoto", "editPhotoPreview");
+  bindImageInput("editCover", "editCoverPreview", { cover: true });
+  bindAccordion();
+  bindGalleryInput();
+  bindEditSave();
+  $("logoutBtn")?.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      go(profileURL());
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  });
+}
+function initEditPage() {
+  if (!onPage("krafty-edit.html")) return;
+  display("editDiv", "none");
+  if (!nfcId) {
+    go("krafty-login.html");
+    return;
+  }
+  showLoader();
+  let initialized = false;
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      go(loginURL());
+      return;
+    }
+    try {
+      const profile = await getProfile();
+      if (!profile || profile.authUid !== user.uid) {
+        go(loginURL());
+        return;
+      }
+      if (!initialized) {
+        initialized = true;
+        fillEditForm(profile);
+        resetGalleryState(profile.productImages || []);
+        bindEditControls(); // Attach all listeners once.
+      }
+      display("editDiv", "block");
+      hideLoader();
+    } catch (error) {
+      console.error("Edit authorization failed:", error);
+      go(loginURL());
+    }
+  });
 }
 
-async function loadGallery() {
-  const images = await loadProductImages(nfcId, db);
-
-  if (!images.length) return;
-
-  images.forEach((item) => {
-    if (!item?.url) return;
-
+// ---------------- Public gallery ----------------
+function renderPublicGallery(images) {
+  const carousel = $("galleryCarousel");
+  const swiperElem = document.querySelector(".gallery-swiper");
+  const wrapper = $("galleryWrapper");
+  if (!carousel || !swiperElem || !wrapper) return;
+  swiperInstance?.destroy?.(true, true);
+  swiperInstance = null;
+  wrapper.replaceChildren();
+  let count = 0;
+  const fragment = document.createDocumentFragment();
+  for (const item of images) {
+    if (!item?.url) continue;
     const slide = document.createElement("div");
     slide.className = "swiper-slide";
-
-    slide.innerHTML = `
-      <div class="image-frame">
-        <img src="${item.url}" alt="Product image" loading="lazy" />
-      </div>
-    `;
-
-    wrapper.appendChild(slide);
-  });
-  galleryCarousel.style.display = "block";
-  swiperElem.style.display = "block";
-  initSwiper();
-  bindFullscreen();
+    const frame = document.createElement("div");
+    frame.className = "image-frame";
+    const image = document.createElement("img");
+    image.src = item.url; // DOM property instead of interpolated HTML.
+    image.alt = item.caption || "Product image";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.addEventListener("click", () => openViewer(image.src));
+    frame.append(image);
+    slide.append(frame);
+    fragment.append(slide);
+    count++;
+  }
+  wrapper.append(fragment);
+  carousel.style.display = count ? "block" : "none";
+  swiperElem.style.display = count ? "block" : "none";
+  if (count && typeof window.Swiper === "function") {
+    swiperInstance = new window.Swiper(".gallery-swiper", {
+      slidesPerView: "auto",
+      spaceBetween: 16,
+      pagination: {
+        el: ".swiper-pagination",
+        type: "bullets",
+        clickable: true,
+      },
+    });
+  }
 }
-
-function initSwiper() {
-  const swiper = new Swiper(".gallery-swiper", {
-    slidesPerView: "auto",
-    spaceBetween: 16,
-    pagination: {
-      el: ".swiper-pagination",
-      type: "bullets",
-      clickable: true,
-    },
-  });
-}
-
-function bindFullscreen() {
-  document.querySelectorAll(".gallery-swiper img").forEach((img) => {
-    img.addEventListener("click", () => openViewer(img.src));
-  });
-}
-
 function openViewer(src) {
   const overlay = document.createElement("div");
   overlay.className = "image-viewer";
-  overlay.innerHTML = `<img src="${src}" />`;
+  const image = document.createElement("img");
+  image.src = src;
+  image.alt = "Gallery image, enlarged";
+  overlay.append(image);
   overlay.addEventListener("click", () => overlay.remove());
-  document.body.appendChild(overlay);
+  document.body.append(overlay);
 }
 
-/* ==========================
-   Init on DOMContentLoaded
-   ========================== */
-document.addEventListener("DOMContentLoaded", () => {
-  if (loaderOverlay) setTimeout(() => hideLoader(), 300);
+// ---------------- vCard: source values, JPEG contact photo, RFC folding ----------------
+const escapeVCard = (value) =>
+  String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\r\n|\r|\n/g, "\\n")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,");
+function foldedVCardLine(line) {
+  // Fold at 75 UTF-8 octets per physical line (continuation space counts).
+  const encoder = new TextEncoder();
+  const parts = [];
+  let current = "";
+  let currentBytes = 0;
+  for (const char of line) {
+    const length = encoder.encode(char).length;
+    if (currentBytes + length > 75) {
+      parts.push(current);
+      current = " ";
+      currentBytes = 1;
+    }
+    current += char;
+    currentBytes += length;
+  }
+  parts.push(current);
+  return parts.join("\r\n");
+}
+function buildN(fullName) {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  const first = parts.shift() || "";
+  return `${escapeVCard(parts.join(" "))};${escapeVCard(first)};;;`;
+}
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] || "");
+    reader.onerror = () => reject(new Error("Could not encode photo"));
+    reader.readAsDataURL(blob);
+  });
+}
+async function getVCardPhoto(photoUrl) {
+  if (!photoUrl || photoUrl.includes(DEFAULT_PHOTO)) return "";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const proxiedURL = `${PHOTO_PROXY}?url=${encodeURIComponent(photoUrl)}`;
+    const response = await fetch(proxiedURL, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Proxy returned ${response.status}`);
+    const blob = await response.blob();
+    // Decode the bytes rather than trusting Content-Type (some proxies return octet-stream).
+    const jpeg = await convertImage(blob, {
+      maxWidth: 512,
+      maxHeight: 512,
+      quality: 0.85,
+      type: "image/jpeg",
+    });
+    return blobToBase64(jpeg);
+  } catch (error) {
+    console.warn(
+      "Photo embedding unavailable; saving contact with image URL:",
+      error,
+    );
+    return "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function downloadContact() {
+  if (!activeProfile || $("profileDiv")?.style.display === "none") {
+    showToast("Profile not loaded yet.");
+    return;
+  }
+  const data = activeProfile;
+  const name = (data.name || "").trim();
+  const position = data.position || "";
+  const email = data.email || "";
+  const phone = data.socials?.phone || "";
+  const website = normalizeUrl(data.socials?.website);
+  const photoUrl = $("profilePhoto")?.src || data.photoUrl || "";
+  const lines = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N:${buildN(name)}`,
+    `FN:${escapeVCard(name)}`,
+  ];
+  if (position) lines.push(`TITLE:${escapeVCard(position)}`);
+  if (email) lines.push(`EMAIL;TYPE=WORK:${escapeVCard(email)}`);
+  if (phone) lines.push(`TEL;TYPE=CELL:${escapeVCard(phone)}`);
+  if (website) lines.push(`URL:${escapeVCard(website)}`);
+  for (const key of PROFILE_SOCIALS) {
+    const url = normalizeUrl(data.socials?.[key]);
+    if (url)
+      lines.push(
+        `X-SOCIALPROFILE;TYPE=${{ facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", linkedin: "LinkedIn" }[key]}:${escapeVCard(url)}`,
+      );
+  }
+  const photo = await getVCardPhoto(photoUrl);
+  if (photo) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photo}`);
+  else if (photoUrl && !photoUrl.includes(DEFAULT_PHOTO))
+    lines.push(`PHOTO;VALUE=URI:${escapeVCard(photoUrl)}`);
+  lines.push("END:VCARD");
+  const content = lines.map(foldedVCardLine).join("\r\n") + "\r\n";
+  const blob = new Blob([content], { type: "text/vcard;charset=utf-8" });
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = `${(name || "contact").replace(/[^a-z0-9 _-]/gi, "").replace(/\s+/g, "_") || "contact"}.vcf`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+}
+function initProfilePage() {
+  if (!onPage("krafty-profile.html")) return;
+  $("loginEditBtn")?.addEventListener("click", () => go(loginURL()));
+  const saveContact = $("saveContactBtn");
+  saveContact?.addEventListener("click", async () => {
+    if (saveContact.disabled) return;
+    saveContact.disabled = true;
+    try {
+      await downloadContact();
+    } catch (error) {
+      console.error("vCard creation failed:", error);
+      showToast("Could not save contact.");
+    } finally {
+      saveContact.disabled = false;
+    }
+  });
+  $("logoutBtn")?.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      go(profileURL());
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  });
+  loadProfile();
+}
+function init() {
   initRegisterPage();
   initLoginPage();
   initEditPage();
   initProfilePage();
-});
+}
+if (document.readyState === "loading")
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+else init();
