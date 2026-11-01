@@ -516,6 +516,7 @@ function initRegisterPage() {
       await setDoc(userRef(), {
         name,
         position: getValue("regPosition"),
+        aboutMe: getValue("regAboutMe"),
         email,
         photoUrl,
         coverUrl,
