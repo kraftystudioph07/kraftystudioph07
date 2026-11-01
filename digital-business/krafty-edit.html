@@ -139,6 +139,64 @@
       <button id="logoutBtn" class="logout">Log Out</button>
     </div>
 
+    <template id="kraftyCropTemplate">
+      <div class="krafty-crop-shade">
+        <section
+          class="krafty-crop-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kraftyCropTitle"
+        >
+          <div class="krafty-crop-eyebrow">Krafty Studio PH · Image editor</div>
+          <h2 id="kraftyCropTitle" class="krafty-crop-title" data-crop-title>
+            Adjust your photo
+          </h2>
+          <p class="krafty-crop-hint">
+            Drag to reposition. Pinch, scroll, or use the slider to zoom.
+          </p>
+          <div class="krafty-crop-stage-shell">
+            <div
+              class="krafty-crop-stage"
+              role="group"
+              tabindex="0"
+              aria-label="Image crop area. Use arrow keys to reposition."
+            >
+              <img alt="Image being cropped" draggable="false" />
+            </div>
+          </div>
+          <div class="krafty-crop-caption">
+            <span data-crop-caption>Image preview</span>
+            <strong data-crop-ratio>RATIO</strong>
+          </div>
+          <div class="krafty-crop-tools">
+            <label for="kraftyCropZoom"
+              >Zoom <span>Pinch / scroll to adjust</span></label
+            >
+            <input
+              id="kraftyCropZoom"
+              type="range"
+              min="1"
+              max="4"
+              step="0.01"
+              value="1"
+              aria-label="Image zoom level"
+            />
+          </div>
+          <div class="krafty-crop-actions">
+            <button type="button" data-action="center">Center</button>
+            <button type="button" data-action="cancel">Cancel</button>
+            <button
+              type="button"
+              class="krafty-crop-accept"
+              data-action="accept"
+            >
+              Use photo
+            </button>
+          </div>
+        </section>
+      </div>
+    </template>
+
     <div id="toast" class="toast"></div>
 
     <script type="module" src="js/app.js"></script>

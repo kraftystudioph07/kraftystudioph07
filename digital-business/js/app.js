@@ -63,6 +63,8 @@ let swiperInstance = null;
 let toastTimer = null;
 let loaderTimer = null;
 const previewURLs = new WeakMap();
+const croppedInputs = new WeakMap();
+let cropInProgress = false;
 
 function showLoader() {
   const elem = $("loaderOverlay");
@@ -265,6 +267,202 @@ const uploadProfilePhoto = (id, uid, file) =>
 const uploadCoverImage = (id, uid, file) =>
   uploadImage("cover_images", id, uid, file);
 
+// Custom, dependency-free cropper for registration and edit image inputs.
+// A fixed ratio is enforced by the canvas output, not by Firestore or Storage.
+function selectedCroppedFile(id) {
+  const input = $(id);
+  return input ? croppedInputs.get(input) || null : null;
+}
+async function cropSelectedImage(file, { cover = false } = {}) {
+  const template = $("kraftyCropTemplate");
+  if (!(template instanceof HTMLTemplateElement)) {
+    throw new Error(
+      "Missing #kraftyCropTemplate in this page. Add the cropper HTML template before the app.js script.",
+    );
+  }
+  const { image, release } = await decodeImage(file);
+  const exportWidth = cover ? 1000 : 800;
+  const exportHeight = cover ? 600 : 800;
+  const shade = template.content
+    .querySelector(".krafty-crop-shade")
+    ?.cloneNode(true);
+  if (!shade) {
+    release();
+    throw new Error(
+      "The #kraftyCropTemplate is missing the .krafty-crop-shade element.",
+    );
+  }
+  shade.classList.add(cover ? "krafty-crop-cover" : "krafty-crop-profile");
+  shade.querySelector("[data-crop-title]").textContent =
+    `Adjust your ${cover ? "cover" : "profile"} photo`;
+  shade.querySelector("[data-crop-caption]").textContent = cover
+    ? "Cover image · matches 500 × 300 display"
+    : "Profile image · square avatar";
+  shade.querySelector("[data-crop-ratio]").textContent = cover
+    ? "5:3 RATIO"
+    : "1:1 RATIO";
+  const stage = shade.querySelector(".krafty-crop-stage");
+  const previewImg = stage.querySelector("img");
+  const slider = shade.querySelector("#kraftyCropZoom");
+  // The dialog remains responsive on small mobile screens.
+  let zoom = 1,
+    dx = 0,
+    dy = 0;
+  const pointers = new Map();
+  let lastPoint = null,
+    lastDistance = 0;
+  const sourceUrl = URL.createObjectURL(file);
+  previewImg.src = sourceUrl;
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const geometry = () => {
+    const { width: vw, height: vh } = stage.getBoundingClientRect();
+    const scale =
+      Math.max(vw / image.naturalWidth, vh / image.naturalHeight) * zoom;
+    const iw = image.naturalWidth * scale,
+      ih = image.naturalHeight * scale;
+    return { vw, vh, scale, iw, ih };
+  };
+  function render() {
+    const { vw, vh, iw, ih } = geometry();
+    dx = clamp(dx, -(iw - vw) / 2, (iw - vw) / 2);
+    dy = clamp(dy, -(ih - vh) / 2, (ih - vh) / 2);
+    Object.assign(previewImg.style, {
+      width: `${iw}px`,
+      height: `${ih}px`,
+      left: `${(vw - iw) / 2 + dx}px`,
+      top: `${(vh - ih) / 2 + dy}px`,
+    });
+    slider.value = String(zoom);
+  }
+  function setZoom(next) {
+    zoom = clamp(next, 1, 4);
+    render();
+  }
+  const onSlider = () => setZoom(Number(slider.value));
+  slider.addEventListener("input", onSlider);
+  function pointerDistance() {
+    const pts = [...pointers.values()];
+    return pts.length < 2
+      ? 0
+      : Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+  stage.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    stage.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) lastPoint = { x: e.clientX, y: e.clientY };
+    if (pointers.size === 2) {
+      lastPoint = null;
+      lastDistance = pointerDistance();
+    }
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const previous = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size >= 2) {
+      const distance = pointerDistance();
+      if (lastDistance > 0) setZoom((zoom * distance) / lastDistance);
+      lastDistance = distance;
+    } else if (lastPoint) {
+      dx += e.clientX - previous.x;
+      dy += e.clientY - previous.y;
+      render();
+    }
+    lastPoint = pointers.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+  });
+  function pointerEnd(e) {
+    pointers.delete(e.pointerId);
+    lastDistance = 0;
+    lastPoint = pointers.size === 1 ? [...pointers.values()][0] : null;
+  }
+  stage.addEventListener("pointerup", pointerEnd);
+  stage.addEventListener("pointercancel", pointerEnd);
+  stage.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      setZoom(zoom + (e.deltaY < 0 ? 0.08 : -0.08));
+    },
+    { passive: false },
+  );
+  stage.addEventListener("keydown", (e) => {
+    const steps = {
+      ArrowLeft: [10, 0],
+      ArrowRight: [-10, 0],
+      ArrowUp: [0, 10],
+      ArrowDown: [0, -10],
+    };
+    if (!steps[e.key]) return;
+    e.preventDefault();
+    dx += steps[e.key][0];
+    dy += steps[e.key][1];
+    render();
+  });
+  let settle;
+  const result = new Promise((resolve) => {
+    settle = resolve;
+  });
+  let resolved = false;
+  function close(value) {
+    if (resolved) return;
+    resolved = true;
+    window.removeEventListener("keydown", keydown);
+    window.removeEventListener("resize", render);
+    URL.revokeObjectURL(sourceUrl);
+    release();
+    shade.remove();
+    settle(value);
+  }
+  function keydown(e) {
+    if (e.key === "Escape") close(null);
+  }
+  window.addEventListener("keydown", keydown);
+  window.addEventListener("resize", render);
+  shade.addEventListener("click", async (e) => {
+    const action = e.target.closest("button[data-action]")?.dataset.action;
+    if (action === "cancel") close(null);
+    else if (action === "center") {
+      dx = dy = 0;
+      setZoom(1);
+    } else if (action === "accept") {
+      const button = e.target.closest("button");
+      button.disabled = true;
+      try {
+        const { vw, vh, scale } = geometry();
+        const sx = ((image.naturalWidth * scale - vw) / 2 - dx) / scale;
+        const sy = ((image.naturalHeight * scale - vh) / 2 - dy) / scale;
+        const sw = vw / scale,
+          sh = vh / scale;
+        const canvas = document.createElement("canvas");
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas unavailable");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, exportWidth, exportHeight);
+        const blob = await canvasBlob(canvas, "image/webp", 0.82);
+        const ext = blob.type === "image/webp" ? "webp" : "png";
+        const basename = (file.name || "photo").replace(/\.[^.]+$/, "");
+        close(
+          new File([blob], `${basename}-cropped.${ext}`, {
+            type: blob.type,
+            lastModified: Date.now(),
+          }),
+        );
+      } catch (error) {
+        console.error("Crop export failed:", error);
+        showToast("Could not crop image: " + error.message);
+        button.disabled = false;
+      }
+    }
+  });
+  document.body.append(shade);
+  render();
+  shade.querySelector('[data-action="accept"]').focus();
+  return result;
+}
 function bindImageInput(
   inputId,
   previewId,
@@ -281,25 +479,34 @@ function bindImageInput(
       clearInputWithError(input, validation.reason);
       return;
     }
-    if (cover) {
-      const dimensions = await validateCoverDimensionsPromise(file);
-      // Ignore a stale validation result if the user selected a different file.
-      if (input.files?.[0] !== file) return;
-      if (!dimensions.ok) {
-        clearInputWithError(
-          input,
-          `Cover must be square or landscape (uploaded: ${dimensions.w ?? "?"}×${dimensions.h ?? "?"})`,
-        );
+    if (cropInProgress) {
+      input.value = "";
+      showToast("Finish the current crop first.");
+      return;
+    }
+    cropInProgress = true;
+    try {
+      const cropped = await cropSelectedImage(file, { cover });
+      if (!cropped) {
+        input.value = "";
         return;
       }
-    }
-    showFilePreview(file, preview);
-    if (hideOverlay) {
-      const overlay = document.querySelector(".upload-overlay");
-      if (overlay) overlay.style.display = "none";
+      croppedInputs.set(input, cropped);
+      showFilePreview(cropped, preview);
+      if (hideOverlay) {
+        const overlay = document.querySelector(".upload-overlay");
+        if (overlay) overlay.style.display = "none";
+      }
+    } catch (error) {
+      console.error("Image crop failed:", error);
+      showToast("Could not process the selected image.");
+      input.value = "";
+    } finally {
+      cropInProgress = false;
     }
   });
 }
+
 function bindPasswordToggle(buttonId, inputId) {
   const button = $(buttonId);
   const input = $(inputId);
@@ -440,7 +647,7 @@ function initRegisterPage() {
   bindPasswordToggle("togglePassword", "regPassword");
   const save = $("regSaveBtn");
   save?.addEventListener("click", async () => {
-    if (save.disabled || !requireId()) return;
+    if (save.disabled || cropInProgress || !requireId()) return;
     const name = getValue("regName");
     const email = getValue("regEmail");
     const password = getValue("regPassword");
@@ -459,18 +666,14 @@ function initRegisterPage() {
       showToast("Enter a valid email");
       return;
     }
-    const photo = $("regPhoto")?.files?.[0];
-    const cover = $("regCover")?.files?.[0];
+    const photo = selectedCroppedFile("regPhoto");
+    const cover = selectedCroppedFile("regCover");
     for (const file of [photo, cover]) {
       const validation = validateImageFile(file);
       if (!validation.ok) {
         showToast(validation.reason);
         return;
       }
-    }
-    if (cover && !(await validateCoverDimensionsPromise(cover)).ok) {
-      showToast("Cover must be square or landscape");
-      return;
     }
     save.disabled = true;
     showLoader();
@@ -491,11 +694,7 @@ function initRegisterPage() {
       let coverUrl = DEFAULT_COVER;
       if (photo) {
         try {
-          photoUrl = await uploadProfilePhoto(
-            nfcId,
-            createdUser.uid,
-            await prepareProfilePhoto(photo),
-          );
+          photoUrl = await uploadProfilePhoto(nfcId, createdUser.uid, photo);
         } catch (error) {
           console.error("Profile photo upload failed:", error);
           showToast("Profile photo upload failed; registering without it.");
@@ -503,11 +702,7 @@ function initRegisterPage() {
       }
       if (cover) {
         try {
-          coverUrl = await uploadCoverImage(
-            nfcId,
-            createdUser.uid,
-            await optimizeCoverImage(cover),
-          );
+          coverUrl = await uploadCoverImage(nfcId, createdUser.uid, cover);
         } catch (error) {
           console.error("Cover upload failed:", error);
           showToast("Cover upload failed; registering without it.");
@@ -739,7 +934,7 @@ function bindEditSave() {
   const save = $("editSaveBtn");
   if (!save) return;
   save.addEventListener("click", async () => {
-    if (save.disabled) return;
+    if (save.disabled || cropInProgress) return;
     const user = auth.currentUser;
     if (!user) {
       go(loginURL());
@@ -753,29 +948,18 @@ function bindEditSave() {
       const original = await getProfile();
       if (!original) throw new Error("Profile not found");
       if (original.authUid !== user.uid) throw new Error("Not authorized");
-      const photoFile = $("editPhoto")?.files?.[0];
-      const coverFile = $("editCover")?.files?.[0];
+      const photoFile = selectedCroppedFile("editPhoto");
+      const coverFile = selectedCroppedFile("editCover");
       for (const file of [photoFile, coverFile]) {
         const validation = validateImageFile(file);
         if (!validation.ok) throw new Error(validation.reason);
       }
-      if (coverFile && !(await validateCoverDimensionsPromise(coverFile)).ok) {
-        throw new Error("Cover must be square or landscape");
-      }
       let photoUrl = original.photoUrl || DEFAULT_PHOTO;
       let coverUrl = original.coverUrl || "images/KraftyMain.png";
       if (photoFile)
-        photoUrl = await uploadProfilePhoto(
-          nfcId,
-          user.uid,
-          await prepareProfilePhoto(photoFile),
-        );
+        photoUrl = await uploadProfilePhoto(nfcId, user.uid, photoFile);
       if (coverFile)
-        coverUrl = await uploadCoverImage(
-          nfcId,
-          user.uid,
-          await optimizeCoverImage(coverFile),
-        );
+        coverUrl = await uploadCoverImage(nfcId, user.uid, coverFile);
       // Upload first, then update Firestore. Delete old objects only after Firestore succeeds.
       const uploaded = [];
       for (const item of newImages) {
